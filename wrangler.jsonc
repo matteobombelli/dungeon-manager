@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "dungeon-manager",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-09-14",
+  "workers_dev": false,
+  "routes": [
+    { "pattern": "apps.matteob.dev/projects/dungeon-manager*", "zone_name": "matteob.dev" }
+  ],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "404-page",
+    "run_worker_first": ["/projects/dungeon-manager/api/*"]
+  },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "dungeon-manager", "database_id": "42da4ba4-9439-403f-a38f-49452ad00866" }
+  ],
+  "r2_buckets": [
+    { "binding": "BUCKET", "bucket_name": "dungeon-manager-prod" }
+  ],
+  "observability": { "enabled": true }
+}
