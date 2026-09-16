@@ -1,0 +1,81 @@
+/* Campaign and scene canvases are stacked layers; opening a scene zooms its layer in over the campaign. */
+
+.workspace {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.workspace__layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  transition:
+    opacity var(--slow) var(--ease-in-out),
+    transform var(--slow) var(--ease-in-out);
+}
+
+.workspace__layer--behind {
+  opacity: 0;
+  transform: scale(1.06);
+  pointer-events: none;
+}
+
+/* The scene grows out of its node on the campaign canvas and shrinks back to the centre on close. */
+.workspace__layer--scene {
+  transform-origin: var(--origin, 50% 50%);
+}
+
+@starting-style {
+  .workspace__layer--scene {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+
+.workspace__layer--leaving {
+  opacity: 0;
+  transform: scale(0.8);
+  transform-origin: 50% 50%;
+}
+
+/* d3-zoom and screenToFlowPosition assume an unscaled container, so the layer takes no input while it moves. */
+.workspace__layer--moving {
+  pointer-events: none;
+}
+
+.workspace__status {
+  flex: 1;
+  display: grid;
+  place-items: center;
+}
+
+.workspace__crumb {
+  color: var(--muted);
+}
+
+.workspace__description {
+  flex: 1;
+  min-width: 6rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* Portal targets for each level's add button and save dot; the inactive level's slot is hidden. */
+.workspace__tools {
+  display: contents;
+}
+
+.workspace__tools[hidden] {
+  display: none;
+}
+
+.workspace__end {
+  margin-left: auto;
+}
+
+.workspace__fade {
+  animation: page-in var(--medium) var(--ease-out) backwards;
+}

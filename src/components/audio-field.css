@@ -1,0 +1,31 @@
+.audio-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.audio-field__label {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.audio-field__preview {
+  width: 100%;
+  max-width: 260px;
+}
+
+.audio-field__placeholder {
+  display: grid;
+  place-items: center;
+  width: 200px;
+  height: 2.5rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  border: var(--stroke) dashed var(--border);
+  border-radius: var(--radius);
+}
+
+.audio-field__status {
+  font-size: 0.8rem;
+  color: var(--muted);
+}

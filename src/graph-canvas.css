@@ -1,0 +1,451 @@
+/* Shared layout for both graph pages (campaign and scene), side panels, and React Flow theming. */
+
+/* React Flow needs a definite height, so the page is sized against the viewport minus the app header. */
+.graph-page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - var(--app-header-height));
+  min-height: 480px;
+}
+
+.graph-page__status {
+  padding: 1rem;
+  color: var(--muted);
+}
+
+.graph-canvas {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  animation: page-in var(--medium) var(--ease-out) backwards;
+}
+
+.graph-canvas__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  border-bottom: var(--stroke) solid var(--border);
+}
+
+.graph-canvas__main {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.graph-canvas__viewport {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+/* The aside animates its width while the content keeps the target width, so text never reflows mid-slide. */
+.graph-canvas__panel {
+  --panel-width: 320px;
+  position: relative;
+  width: var(--panel-width);
+  flex-shrink: 0;
+  overflow: hidden;
+  border-left: var(--stroke) solid var(--border);
+  transition:
+    width var(--medium) var(--ease-in-out),
+    max-height var(--medium) var(--ease-in-out),
+    opacity var(--medium) var(--ease-out);
+}
+
+@starting-style {
+  .graph-canvas__panel {
+    width: 0;
+    opacity: 0;
+  }
+}
+
+.graph-canvas__panel--closing {
+  width: 0;
+  opacity: 0;
+}
+
+.graph-canvas__panel--resizing {
+  transition: none;
+  user-select: none;
+}
+
+.graph-canvas__panel-content {
+  width: var(--panel-width);
+  height: 100%;
+  overflow: auto;
+  padding: 0.75rem;
+  animation: page-in var(--medium) var(--ease-out) backwards;
+}
+
+.graph-canvas__panel-handle {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.graph-canvas__panel-handle::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--stroke);
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity var(--fast) var(--ease-out);
+}
+
+.graph-canvas__panel-handle:hover::after,
+.graph-canvas__panel--resizing .graph-canvas__panel-handle::after {
+  opacity: 1;
+}
+
+.graph-canvas__hint {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.graph-canvas__danger {
+  color: var(--danger);
+}
+
+@media (max-width: 800px) {
+  .graph-canvas__main {
+    flex-direction: column;
+  }
+
+  .graph-canvas__panel {
+    width: auto;
+    max-height: 45%;
+    border-left: 0;
+    border-top: var(--stroke) solid var(--border);
+  }
+
+  .graph-canvas__panel--closing {
+    width: auto;
+    max-height: 0;
+  }
+
+  .graph-canvas__panel-content {
+    width: auto;
+  }
+
+  .graph-canvas__panel-handle {
+    display: none;
+  }
+}
+
+/* Save state as a single dot. */
+.save-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: transparent;
+  transition: background var(--medium) var(--ease-out);
+}
+
+.save-dot--saved {
+  background: color-mix(in oklab, var(--pastel-map), var(--fg) 30%);
+}
+
+.save-dot--dirty,
+.save-dot--saving {
+  background: var(--warn);
+  animation: save-pulse 1.6s var(--ease-in-out) infinite;
+}
+
+.save-dot--error {
+  background: var(--danger);
+}
+
+@keyframes save-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* Side panels: a header row (title or inline-edit input plus icon buttons) and a compact form body. */
+.panel__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  animation: fade-in var(--medium) var(--ease-out) backwards;
+}
+
+.panel__header {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 2rem;
+}
+
+.panel__header > .inline-edit,
+.panel__title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.panel__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel__body label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.panel__body label > :is(input, select, textarea) {
+  width: 100%;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.85rem;
+  color: var(--fg);
+}
+
+.panel__body textarea {
+  min-height: 4rem;
+  resize: vertical;
+}
+
+.panel__body .editor-inline {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--fg);
+}
+
+.panel__body .editor-inline > input {
+  width: auto;
+}
+
+.editor-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.6rem;
+  border: var(--stroke) solid var(--border);
+  border-radius: var(--radius);
+  animation: page-in var(--medium) var(--ease-out) backwards;
+}
+
+.editor-group__title {
+  display: flex;
+  align-items: center;
+  min-height: 1.5rem;
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+/* A dot of the node's tone (editor-section.css puts it on .panel__body) keeps a long panel scannable. */
+.editor-group__title::before {
+  content: "";
+  width: 0.45rem;
+  height: 0.45rem;
+  margin-right: 0.4rem;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--tone, var(--surface)), var(--fg) 25%);
+}
+
+.editor-group__title > span {
+  flex: 1;
+}
+
+.editor-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.editor-row > label {
+  flex: 1;
+  min-width: 0;
+}
+
+.editor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 0.5rem;
+}
+
+.editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* Add-node menu: a popover grid of miniature node cards with a label under each. */
+.add-menu {
+  position: relative;
+}
+
+.add-menu__list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 10;
+  margin: 0.25rem 0 0;
+  padding: 0.5rem;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, 4.75rem);
+  gap: 0.25rem;
+  background: var(--bg);
+  border: var(--stroke) solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-hover);
+  transform-origin: top left;
+  animation: menu-in var(--fast) var(--ease-out);
+}
+
+/* One row of the grid at a time, just behind the list itself. */
+.add-menu__list > li {
+  animation: menu-item-in var(--fast) var(--ease-out) backwards;
+}
+
+.add-menu__list > li:nth-child(n + 4) {
+  animation-delay: 40ms;
+}
+
+.add-menu__list > li:nth-child(n + 7) {
+  animation-delay: 80ms;
+}
+
+.add-menu__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.5rem 0.25rem 0.4rem;
+  border: 0;
+  border-radius: calc(var(--radius) - 4px);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1;
+  transition:
+    background var(--fast) var(--ease-out),
+    color var(--fast) var(--ease-out);
+}
+
+.add-menu__item > span:last-child {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The glyph carries the type's tone; :has() lifts it onto the item so the hover tint matches the node. */
+.add-menu__item:has(.node-card--map) {
+  --tone: var(--pastel-map);
+}
+
+.add-menu__item:has(.node-card--event) {
+  --tone: var(--pastel-event);
+}
+
+.add-menu__item:has(.node-card--statblock) {
+  --tone: var(--pastel-statblock);
+}
+
+.add-menu__item:has(.node-card--character) {
+  --tone: var(--pastel-character);
+}
+
+.add-menu__item:has(.node-card--music) {
+  --tone: var(--pastel-music);
+}
+
+.add-menu__item:has(.node-card--custom) {
+  --tone: var(--pastel-custom);
+}
+
+.add-menu__item:hover,
+.add-menu__item:focus-visible {
+  background: color-mix(in oklab, var(--tone, var(--surface)), var(--bg) 55%);
+  color: var(--fg);
+}
+
+/* React Flow theming through its own variables so both colour schemes work. */
+.react-flow {
+  --xy-edge-stroke: var(--pastel-link);
+  --xy-edge-stroke-width: calc(var(--stroke) * 1.5);
+  --xy-edge-stroke-selected: var(--accent);
+  --xy-connectionline-stroke: var(--pastel-link);
+  --xy-connectionline-stroke-width: calc(var(--stroke) * 1.5);
+  --xy-edge-label-background-color: var(--surface);
+  --xy-edge-label-color: var(--fg);
+  --xy-background-pattern-color: var(--border);
+  --xy-selection-background-color: color-mix(in oklab, var(--accent), transparent 85%);
+  --xy-selection-border: var(--stroke) dashed var(--accent);
+  --xy-attribution-background-color: transparent;
+  --xy-controls-box-shadow: var(--shadow);
+  --xy-controls-button-background-color: var(--surface);
+  --xy-controls-button-background-color-hover: var(--bg);
+  --xy-controls-button-color: var(--fg);
+  --xy-controls-button-color-hover: var(--accent);
+  --xy-controls-button-border-color: var(--border);
+}
+
+.react-flow__controls {
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.react-flow__attribution a {
+  color: var(--muted);
+}
+
+/* New edges draw themselves in. Campaign routes keep React Flow's own dash animation: its
+   `.animated path` rule is more specific than this one. */
+.react-flow__edge-path {
+  animation: edge-draw var(--medium) var(--ease-out);
+}
+
+@keyframes edge-draw {
+  from {
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+  }
+  to {
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Campaign routes are animated directed edges. */
+.react-flow__edge.animated .react-flow__edge-path {
+  stroke: var(--pastel-route);
+}
+
+.react-flow__edge.animated .react-flow__edge-textbg {
+  stroke: var(--pastel-route);
+}
+
+/* Edge label chip. */
+.react-flow__edge-textbg {
+  rx: 6px;
+  ry: 6px;
+  stroke: var(--pastel-link);
+  stroke-width: var(--stroke);
+}
+
+.react-flow__edge-text {
+  font-size: 11px;
+  font-weight: 500;
+}

@@ -14,7 +14,12 @@
     "run_worker_first": ["/projects/dungeon-manager/api/*"]
   },
   "d1_databases": [
-    { "binding": "DB", "database_name": "dungeon-manager", "database_id": "42da4ba4-9439-403f-a38f-49452ad00866" }
+    {
+      "binding": "DB",
+      "database_name": "dungeon-manager",
+      "database_id": "42da4ba4-9439-403f-a38f-49452ad00866",
+      "migrations_dir": "migrations"
+    }
   ],
   "r2_buckets": [
     { "binding": "BUCKET", "bucket_name": "dungeon-manager-prod" }

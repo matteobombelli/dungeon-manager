@@ -1,24 +1,710 @@
 :root {
   color-scheme: light dark;
-  font-family: system-ui, sans-serif;
+
+  --bg: #ffffff;
+  --fg: #1b1b1f;
+  --muted: #6b6b76;
+  --accent: #3b82c4;
+  --border: #d9d9e0;
+  --danger: #c0392b;
+  --warn: #d99a1e;
+  --surface: #f6f6f9;
+  --map-paper: #ffffff;
+  --scrim: rgba(20, 20, 40, 0.45);
+
+  /* Pastel palette: node types and connections. */
+  --pastel-scene: #cfe3f7;
+  --pastel-map: #cdeccf;
+  --pastel-event: #fde2b8;
+  --pastel-statblock: #f6c9c9;
+  --pastel-character: #e3d3f5;
+  --pastel-custom: #fff1b8;
+  --pastel-music: #cfeee8;
+  --pastel-link: #c9b8e8;
+  --pastel-route: #9fc4e8;
+
+  /* Ability tones: six hues the statblock and event editors colour-code checks with. */
+  --ability-str: #f6c4b8;
+  --ability-dex: #cfe9c4;
+  --ability-con: #f7ddb0;
+  --ability-int: #c9dcf7;
+  --ability-wis: #d8cdf2;
+  --ability-cha: #f7cbe4;
+
+  /* Shape system: one radius, one stroke, one shadow family. */
+  --radius: 12px;
+  --stroke: 1.5px;
+  --shadow: 0 1px 3px rgba(20, 20, 40, 0.12);
+  --shadow-hover: 0 8px 20px rgba(20, 20, 40, 0.16);
+  --drop-shadow: drop-shadow(0 6px 8px rgba(20, 20, 40, 0.18));
+
+  /* Motion: three durations, so everything that moves together stays in step. */
+  --fast: 160ms;
+  --medium: 320ms;
+  --slow: 480ms;
+  --app-header-height: 3rem;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17171b;
+    --fg: #ececf1;
+    --muted: #9a9aa6;
+    --accent: #7fb3e6;
+    --border: #35353f;
+    --danger: #e26d5c;
+    --warn: #e6b04a;
+    --surface: #1f1f25;
+    --map-paper: #e9e6df;
+    --scrim: rgba(0, 0, 0, 0.6);
+
+    --pastel-scene: #2b3f57;
+    --pastel-map: #2b4a30;
+    --pastel-event: #5a4326;
+    --pastel-statblock: #5a2f33;
+    --pastel-character: #3f3358;
+    --pastel-custom: #56502a;
+    --pastel-music: #24504b;
+    --pastel-link: #6a5a8f;
+    --pastel-route: #4d7196;
+
+    --ability-str: #5c3428;
+    --ability-dex: #33482a;
+    --ability-con: #574325;
+    --ability-int: #2f4463;
+    --ability-wis: #3f3358;
+    --ability-cha: #56304a;
+
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    --shadow-hover: 0 8px 20px rgba(0, 0, 0, 0.5);
+    --drop-shadow: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.5));
+  }
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  display: grid;
-  place-items: center;
-  min-height: 100vh;
+  background: var(--bg);
+  color: var(--fg);
+  font: 16px/1.5 "Figtree Variable", system-ui, sans-serif;
 }
 
-main {
-  text-align: center;
+#root {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
 }
 
-.status {
-  list-style: none;
+h1 {
+  font-size: 1.25rem;
+  margin: 0;
+}
+
+a {
+  color: var(--accent);
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Controls */
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+  background: var(--bg);
+  border: var(--stroke) solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.45rem 0.7rem;
+  transition:
+    border-color var(--fast) var(--ease-out),
+    background var(--fast) var(--ease-out),
+    color var(--fast) var(--ease-out),
+    box-shadow var(--fast) var(--ease-out);
+}
+
+button {
+  background: var(--surface);
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.button--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+}
+
+::placeholder {
+  color: var(--muted);
+}
+
+:focus-visible {
+  outline: var(--stroke) solid var(--accent);
+  outline-offset: 2px;
+}
+
+input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  padding: 0;
+  accent-color: var(--accent);
+}
+
+input[type="range"] {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  accent-color: var(--accent);
+}
+
+input[type="color"] {
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 2px;
+  border-radius: 50%;
+}
+
+input[type="color"]::-webkit-color-swatch-wrapper {
   padding: 0;
 }
 
-.error {
-  color: #c0392b;
+input[type="color"]::-webkit-color-swatch {
+  border: 0;
+  border-radius: 50%;
+}
+
+/* Borderless heading-style input; the underline appears on hover and focus. */
+.inline-edit {
+  min-width: 0;
+  padding: 0.15rem 0;
+  background: transparent;
+  border: 0;
+  border-bottom: var(--stroke) solid transparent;
+  border-radius: 0;
+  transition: border-color var(--medium) var(--ease-out);
+}
+
+.inline-edit:hover {
+  border-bottom-color: var(--border);
+}
+
+.inline-edit:focus-visible {
+  border-bottom-color: var(--accent);
+  outline: none;
+}
+
+.inline-edit--title {
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+/* Icon actions: ghost round buttons; hidden inside .hover-actions until hover or keyboard focus. */
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  text-decoration: none;
+  cursor: pointer;
+  position: relative;
+  transition:
+    background var(--fast) var(--ease-out),
+    color var(--fast) var(--ease-out),
+    opacity var(--fast) var(--ease-out),
+    transform var(--fast) var(--ease-spring);
+}
+
+.icon-btn:hover,
+.icon-btn:focus-visible {
+  background: var(--surface);
+  color: var(--fg);
+  transform: scale(1.06);
+}
+
+.icon-btn:active {
+  transform: scale(0.94);
+}
+
+.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.icon-btn--danger:hover,
+.icon-btn--danger:focus-visible {
+  color: var(--danger);
+}
+
+.icon-btn--active {
+  background: var(--surface);
+  color: var(--accent);
+}
+
+.icon-btn::after {
+  content: attr(aria-label);
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.15rem 0.45rem;
+  border-radius: calc(var(--radius) / 2);
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 0.7rem;
+  font-weight: 400;
+  line-height: 1.4;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--fast) var(--ease-out);
+  z-index: 10;
+}
+
+/* The delay sits on the shown state, so the tooltip waits before appearing but leaves at once. */
+.icon-btn:hover::after,
+.icon-btn:focus-visible::after {
+  opacity: 1;
+  transition-delay: 350ms;
+}
+
+.hover-actions .icon-btn {
+  opacity: 0;
+}
+
+.hover-actions:hover .icon-btn,
+.hover-actions:focus-within .icon-btn,
+.icon-btn:focus-visible {
+  opacity: 1;
+}
+
+/* Header */
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  height: var(--app-header-height);
+  padding: 0 1rem;
+  border-bottom: var(--stroke) solid var(--border);
+}
+
+.app-header__brand {
+  flex: 1;
+  font-weight: 600;
+  color: inherit;
+  text-decoration: none;
+}
+
+.app-header__user {
+  display: flex;
+  align-items: center;
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--pastel-scene);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* Pages */
+
+.page {
+  flex: 1;
+  width: 100%;
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+  animation: page-in var(--medium) var(--ease-out) backwards;
+}
+
+.page--centre {
+  display: grid;
+  place-items: center;
+}
+
+/* Pastel tones: a card gets its fill from its own colour (--tone-override, set by withColor on
+   React Flow's wrapper) or its type's default, plus a darker edge of the same hue. */
+
+.card,
+.node-card {
+  --tone: var(--tone-override, var(--tone-default, var(--surface)));
+  --tone-edge: color-mix(in oklab, var(--tone), var(--fg) 25%);
+  background: var(--tone);
+  border: var(--stroke) solid var(--tone-edge);
+  border-radius: var(--radius);
+}
+
+.card:hover,
+.node-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+}
+
+.card--scene,
+.node-card--scene {
+  --tone-default: var(--pastel-scene);
+}
+
+.node-card--map {
+  --tone-default: var(--pastel-map);
+}
+
+.node-card--event {
+  --tone-default: var(--pastel-event);
+}
+
+.node-card--statblock {
+  --tone-default: var(--pastel-statblock);
+}
+
+.node-card--character {
+  --tone-default: var(--pastel-character);
+}
+
+.node-card--music {
+  --tone-default: var(--pastel-music);
+}
+
+.card--custom,
+.node-card--custom {
+  --tone-default: var(--pastel-custom);
+}
+
+/* Cards */
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 1rem;
+  transition:
+    transform var(--medium) var(--ease-out),
+    box-shadow var(--medium) var(--ease-out);
+}
+
+.card-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 1rem;
+}
+
+.card-grid > .card,
+.card-grid > li > .card {
+  min-height: 7rem;
+}
+
+/* The title stretches over the whole card so the card itself is the link. */
+.card__title {
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  font-weight: 600;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.card__title::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.card__desc {
+  margin: 0;
+  font-size: 0.875rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card__meta {
+  margin-top: auto;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.card__actions {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 1;
+}
+
+.card--add {
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: var(--stroke) dashed var(--border);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.card--add:hover,
+.card--add:focus-within {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.card--add .inline-edit {
+  width: 100%;
+  text-align: center;
+  color: var(--fg);
+}
+
+.card--auth {
+  width: 100%;
+  max-width: 20rem;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+}
+
+/* Forms */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.form__error {
+  color: var(--danger);
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+/* Prefab field editor */
+
+.prefab-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.prefab-fields__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.prefab-fields__row > input {
+  flex: 1;
+  min-width: 6rem;
+}
+
+.prefab-fields__error {
+  flex-basis: 100%;
+}
+
+/* Spinner */
+
+.spinner {
+  display: inline-block;
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Settles down into place rather than up: overflow past the block-start edge is unreachable, so
+   the rise cannot flash a scrollbar on a page that already fills the viewport. */
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+/* Popover menus grow out of the button that opened them; each sets its own transform-origin. */
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+
+@keyframes menu-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+/* Modal */
+
+.modal__backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--scrim);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  z-index: 10;
+  animation: fade-in var(--medium) var(--ease-out);
+}
+
+.modal {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  border: var(--stroke) solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-hover);
+  max-width: 100%;
+  max-height: 100%;
+  animation: modal-in var(--medium) var(--ease-out);
+}
+
+.modal--md {
+  width: 32rem;
+}
+
+.modal--full {
+  width: 95vw;
+  height: 95vh;
+}
+
+.modal__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.6rem 0.5rem 1rem;
+  border-bottom: var(--stroke) solid var(--border);
+}
+
+.modal__title {
+  flex: 1;
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.modal__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 1rem;
+}
+
+/* Image field */
+
+.image-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.image-field__label {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.image-field__preview {
+  max-width: 200px;
+  max-height: 200px;
+  border: var(--stroke) solid var(--border);
+  border-radius: var(--radius);
+  object-fit: contain;
+}
+
+.image-field__placeholder {
+  display: grid;
+  place-items: center;
+  width: 200px;
+  height: 100px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  border: var(--stroke) dashed var(--border);
+  border-radius: var(--radius);
+}
+
+.image-field__status {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The spinner is exempt: its rotation is the only signal that a load is still running. */
+  *:not(.spinner),
+  *::before,
+  *::after {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
 }

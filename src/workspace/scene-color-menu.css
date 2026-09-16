@@ -1,0 +1,37 @@
+.scene-color {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.scene-color__swatch {
+  width: 1.1rem;
+  height: 1.1rem;
+  padding: 0;
+  border: var(--stroke) solid var(--border);
+  border-radius: 50%;
+  transition: transform var(--fast) var(--ease-out);
+}
+
+.scene-color__swatch:hover {
+  transform: scale(1.15);
+}
+
+.scene-color__swatch--default {
+  background: repeating-linear-gradient(-45deg, var(--bg) 0 3px, var(--border) 3px 5px);
+}
+
+.scene-color__popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 10;
+  width: 16rem;
+  margin-top: 0.35rem;
+  padding: 0.6rem;
+  background: var(--bg);
+  border: var(--stroke) solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-hover);
+  animation: page-in var(--fast) var(--ease-out);
+}

@@ -1,30 +1,42 @@
-import { useEffect, useState } from "react";
+import { Boxes, LogOut } from "lucide-react";
+import { Link, Outlet, useNavigate } from "react-router";
+import { AuthProvider, useAuth } from "./auth/AuthProvider";
+import { IconButton } from "./components/IconButton";
 
-type Health = { ok: boolean; d1: boolean; r2: boolean };
+function Header() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
-export default function App() {
-  const [health, setHealth] = useState<Health | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Relative so it resolves under the /projects/dungeon-manager/ base.
-    fetch("api/health")
-      .then((res) => res.json() as Promise<Health>)
-      .then(setHealth)
-      .catch((err: Error) => setError(err.message));
-  }, []);
+  async function onLogout() {
+    await logout();
+    navigate("/login", { replace: true });
+  }
 
   return (
-    <main>
-      <h1>Hello World</h1>
-      <p>Dungeon Manager is deployed.</p>
-      {error && <p className="status error">API error: {error}</p>}
-      {health && (
-        <ul className="status">
-          <li>D1: {health.d1 ? "connected" : "unavailable"}</li>
-          <li>R2: {health.r2 ? "connected" : "unavailable"}</li>
-        </ul>
+    <header className="app-header">
+      <Link className="app-header__brand" to="/campaigns">
+        Dungeon Manager
+      </Link>
+      {user && (
+        <>
+          <IconButton icon={Boxes} label="Prefabs" to="/prefabs" />
+          <div className="app-header__user hover-actions">
+            <span className="avatar" aria-hidden="true">
+              {user.email[0]}
+            </span>
+            <IconButton icon={LogOut} label="Log out" onClick={() => void onLogout()} />
+          </div>
+        </>
       )}
-    </main>
+    </header>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <Header />
+      <Outlet />
+    </AuthProvider>
   );
 }

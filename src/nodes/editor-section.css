@@ -1,0 +1,158 @@
+/* Removable editor sections, the popover that brings them back, and the tone colours editors use. */
+
+.section-menu {
+  position: relative;
+  align-self: flex-start;
+}
+
+.section-menu__list {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  z-index: 10;
+  margin: 0 0 0.25rem;
+  padding: 0.25rem;
+  min-width: 10rem;
+  list-style: none;
+  background: var(--bg);
+  border: var(--stroke) solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-hover);
+  transform-origin: bottom left;
+  animation: menu-in var(--fast) var(--ease-out);
+}
+
+.section-menu__list > li {
+  animation: menu-item-in var(--fast) var(--ease-out) backwards;
+}
+
+.section-menu__list > li:nth-child(n + 2) {
+  animation-delay: 30ms;
+}
+
+.section-menu__list > li:nth-child(n + 4) {
+  animation-delay: 60ms;
+}
+
+.section-menu__list > li:nth-child(n + 6) {
+  animation-delay: 90ms;
+}
+
+.section-menu__item {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  border: 0;
+  border-radius: calc(var(--radius) - 4px);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: left;
+  transition:
+    background var(--fast) var(--ease-out),
+    color var(--fast) var(--ease-out);
+}
+
+.section-menu__item:hover,
+.section-menu__item:focus-visible {
+  background: var(--surface);
+  color: var(--fg);
+}
+
+/* Ability tones: one hue per ability, so checks and saves are tellable apart at a glance. */
+.ability--str {
+  --tone: var(--ability-str);
+}
+
+.ability--dex {
+  --tone: var(--ability-dex);
+}
+
+.ability--con {
+  --tone: var(--ability-con);
+}
+
+.ability--int {
+  --tone: var(--ability-int);
+}
+
+.ability--wis {
+  --tone: var(--ability-wis);
+}
+
+.ability--cha {
+  --tone: var(--ability-cha);
+}
+
+.panel__body label.ability {
+  padding: 0.3rem 0.4rem;
+  border-radius: calc(var(--radius) - 4px);
+  background: color-mix(in srgb, var(--tone) 40%, transparent);
+  color: var(--fg);
+}
+
+.ability-badge {
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: var(--tone);
+  color: var(--fg);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.editor-group.event-check {
+  border-left: 4px solid var(--tone);
+}
+
+/* Node panel header tinted with the node type's pastel, or the node's own colour when it has one
+   (NodePanel sets --tone inline). The body carries the type tone too, for the section dots. */
+.panel__header--map,
+.panel__body:has(.panel__header--map) {
+  --tone: var(--pastel-map);
+}
+
+.panel__header--statblock,
+.panel__body:has(.panel__header--statblock) {
+  --tone: var(--pastel-statblock);
+}
+
+.panel__header--character,
+.panel__body:has(.panel__header--character) {
+  --tone: var(--pastel-character);
+}
+
+.panel__header--event,
+.panel__body:has(.panel__header--event) {
+  --tone: var(--pastel-event);
+}
+
+.panel__header--custom,
+.panel__body:has(.panel__header--custom) {
+  --tone: var(--pastel-custom);
+}
+
+.panel__header--music,
+.panel__body:has(.panel__header--music) {
+  --tone: var(--pastel-music);
+}
+
+.panel__header--map,
+.panel__header--statblock,
+.panel__header--character,
+.panel__header--event,
+.panel__header--custom,
+.panel__header--music {
+  padding: 0.3rem 0.5rem;
+  border-left: 3px solid color-mix(in oklab, var(--tone), var(--fg) 25%);
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--tone), var(--bg) 70%);
+  transition: background var(--medium) var(--ease-out);
+}
+
+.custom-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-top: 0.5rem;
+  border-top: var(--stroke) solid var(--border);
+}

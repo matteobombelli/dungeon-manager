@@ -1,0 +1,40 @@
+.color-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.color-field__label {
+  width: 100%;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.color-field__swatch {
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: var(--stroke) solid var(--border);
+  border-radius: 50%;
+  transition:
+    transform var(--fast) var(--ease-spring),
+    box-shadow var(--medium) var(--ease-out);
+}
+
+.color-field__swatch:hover {
+  transform: scale(1.12);
+}
+
+/* A ring rather than an outline: it fades in with the selection and leaves the focus outline free. */
+.color-field__swatch--active {
+  box-shadow: 0 0 0 3px var(--accent);
+}
+
+.color-field__swatch--default {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--bg) 0 3px,
+    var(--border) 3px 5px
+  );
+}

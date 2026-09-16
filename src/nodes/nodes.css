@@ -1,0 +1,267 @@
+/* Node cards: the shape encodes the type, the tone (styles.css) encodes its colour. */
+
+.node-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  color: var(--fg);
+  font-size: 13px;
+  box-shadow: var(--shadow);
+  animation: node-pop 220ms var(--ease-spring) backwards;
+  transition:
+    transform var(--medium) var(--ease-out),
+    box-shadow var(--medium) var(--ease-out),
+    filter var(--medium) var(--ease-out);
+}
+
+/* Two classes so this outranks the --tone-edge set on .node-card regardless of stylesheet order. */
+.node-card.node-card--selected {
+  --tone-edge: var(--accent);
+  animation:
+    node-pop 220ms var(--ease-spring) backwards,
+    node-glow 2.4s var(--ease-in-out) infinite;
+}
+
+/* Kept short and shallow: React Flow only renders the visible cards, so a card scrolled back into
+   view remounts and replays this. */
+@keyframes node-pop {
+  from {
+    transform: scale(0.85);
+  }
+  70% {
+    transform: scale(1.03);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes node-glow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 0 transparent);
+  }
+  50% {
+    filter: drop-shadow(0 0 8px var(--accent));
+  }
+}
+
+/* Shapes */
+
+.node-card--rect {
+  width: 200px;
+  min-height: 80px;
+  justify-content: center;
+  padding: 12px 14px;
+}
+
+.node-card--square {
+  width: 180px;
+  aspect-ratio: 1;
+  padding: 10px 12px;
+}
+
+.node-card--square .node-card__body {
+  flex: 1;
+  min-height: 0;
+}
+
+.node-card--circle,
+.node-card--pill,
+.node-card--hexagon,
+.node-card--diamond,
+.node-card--octagon {
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+/* Two classes: outranks the radius set on .node-card regardless of stylesheet order. */
+.node-card.node-card--circle {
+  width: 180px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  padding: 28px;
+}
+
+.node-card.node-card--pill {
+  width: 150px;
+  height: 210px;
+  border-radius: 999px;
+  padding: 24px 18px;
+}
+
+/* Clip-path would cut a normal border, so these shapes paint edge and fill on two clipped layers.
+   Two classes so this outranks the fill and border set on .node-card regardless of stylesheet order. */
+.node-card.node-card--hexagon,
+.node-card.node-card--diamond,
+.node-card.node-card--octagon {
+  isolation: isolate;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.node-card--hexagon {
+  --clip: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+  width: 200px;
+  height: 174px;
+  padding: 20px 32px;
+}
+
+.node-card--diamond {
+  --clip: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  width: 210px;
+  height: 180px;
+  padding: 36px 44px;
+}
+
+/* Octagon: the music node. */
+.node-card--octagon {
+  --clip: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%);
+  width: 190px;
+  height: 190px;
+  padding: 26px 34px;
+}
+
+.node-card--hexagon::before,
+.node-card--hexagon::after,
+.node-card--diamond::before,
+.node-card--diamond::after,
+.node-card--octagon::before,
+.node-card--octagon::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--tone-edge);
+  clip-path: var(--clip);
+}
+
+.node-card--hexagon::after,
+.node-card--diamond::after,
+.node-card--octagon::after {
+  inset: var(--stroke);
+  background: var(--tone);
+}
+
+/* Clipped shapes swap the rectangular hover shadow for one that follows the clip; two classes so this
+   outranks the shared hover lift in styles.css regardless of stylesheet order. */
+.node-card.node-card--hexagon:hover,
+.node-card.node-card--diamond:hover,
+.node-card.node-card--octagon:hover {
+  box-shadow: none;
+  filter: var(--drop-shadow);
+}
+
+/* Miniature card used as a glyph in the add-node menu; two classes so it outranks the shape sizes above. */
+.node-card.node-card--glyph {
+  width: 28px;
+  height: 28px;
+  min-height: 0;
+  padding: 0;
+  box-shadow: none;
+  animation: none;
+  pointer-events: none;
+}
+
+.node-card--glyph.node-card--pill {
+  width: 20px;
+  height: 30px;
+}
+
+.node-card--glyph.node-card--octagon {
+  width: 26px;
+  height: 26px;
+}
+
+.node-card--glyph.node-card--square {
+  border-radius: 6px;
+}
+
+/* Content */
+
+.node-card__header,
+.node-card__body {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.node-card__title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-card__body {
+  flex-direction: column;
+  align-items: inherit;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.node-card__line {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.node-card__tag {
+  display: inline-block;
+  font-size: 11px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.node-card__tag--muted {
+  background: transparent;
+  border: var(--stroke) solid var(--tone-edge);
+  color: inherit;
+}
+
+.node-card__portrait {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 50%;
+  margin-bottom: 6px;
+}
+
+/* Icon actions in the corner; revealed by hovering anywhere on the card. */
+.node-card__actions {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  display: flex;
+  z-index: 1;
+}
+
+.node-card .icon-btn {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.node-card:hover .node-card__actions .icon-btn {
+  opacity: 1;
+}
+
+/* Handles: dots in the tone edge colour that grow on hover. */
+.node-card .node-card__handle {
+  width: 10px;
+  height: 10px;
+  background: var(--tone-edge);
+  border: 0;
+  transition: scale var(--fast) var(--ease-spring);
+}
+
+.node-card .node-card__handle:hover {
+  scale: 1.6;
+}
