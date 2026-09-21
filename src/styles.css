@@ -20,16 +20,18 @@
   --pastel-character: #e3d3f5;
   --pastel-custom: #fff1b8;
   --pastel-music: #cfeee8;
+  --pastel-group: #dcdfe6;
   --pastel-link: #c9b8e8;
   --pastel-route: #9fc4e8;
 
-  /* Ability tones: six hues the statblock and event editors colour-code checks with. */
-  --ability-str: #f6c4b8;
-  --ability-dex: #cfe9c4;
-  --ability-con: #f7ddb0;
-  --ability-int: #c9dcf7;
-  --ability-wis: #d8cdf2;
-  --ability-cha: #f7cbe4;
+  /* Ability tones: one hue per ability, dark enough to read as a colour, light enough to carry
+     --fg text as a fill. */
+  --ability-str: #f4c0bd;
+  --ability-dex: #f6e3a5;
+  --ability-con: #d9bb9a;
+  --ability-int: #c3d9f7;
+  --ability-wis: #c3e5bd;
+  --ability-cha: #dcc9f2;
 
   /* Shape system: one radius, one stroke, one shadow family. */
   --radius: 12px;
@@ -68,15 +70,16 @@
     --pastel-character: #3f3358;
     --pastel-custom: #56502a;
     --pastel-music: #24504b;
+    --pastel-group: #3a3e46;
     --pastel-link: #6a5a8f;
     --pastel-route: #4d7196;
 
-    --ability-str: #5c3428;
-    --ability-dex: #33482a;
-    --ability-con: #574325;
-    --ability-int: #2f4463;
-    --ability-wis: #3f3358;
-    --ability-cha: #56304a;
+    --ability-str: #5e2b28;
+    --ability-dex: #5b4a1f;
+    --ability-con: #4a3626;
+    --ability-int: #29456b;
+    --ability-wis: #2b4a2f;
+    --ability-cha: #443063;
 
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
     --shadow-hover: 0 8px 20px rgba(0, 0, 0, 0.5);
@@ -164,6 +167,41 @@ button:disabled {
   color: var(--bg);
 }
 
+.button--secondary {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+.button--secondary:hover:not(:disabled) {
+  color: var(--fg);
+}
+
+/* Small pill toggles: a real button in the editor, a plain span on a card. The reset is deliberate,
+   the global button box is far too bulky at this size. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.05rem 0.4rem;
+  border: var(--stroke) solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
+.chip--on {
+  background: var(--tone, var(--surface));
+  border-color: color-mix(in oklab, var(--tone, var(--surface)), var(--fg) 35%);
+  color: var(--fg);
+}
+
+button.chip:hover:not(:disabled) {
+  border-color: color-mix(in oklab, var(--tone, var(--surface)), var(--fg) 35%);
+  color: var(--fg);
+}
+
 ::placeholder {
   color: var(--muted);
 }
@@ -221,11 +259,6 @@ input[type="color"]::-webkit-color-swatch {
 .inline-edit:focus-visible {
   border-bottom-color: var(--accent);
   outline: none;
-}
-
-.inline-edit--title {
-  font-size: 1.4rem;
-  font-weight: 600;
 }
 
 /* Icon actions: ghost round buttons; hidden inside .hover-actions until hover or keyboard focus. */
@@ -363,6 +396,26 @@ input[type="color"]::-webkit-color-swatch {
   place-items: center;
 }
 
+/* Campaigns page: live campaigns or the trash. */
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.tabs__tab {
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+}
+
+.tabs__tab[aria-selected="true"] {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--fg);
+}
+
 /* Pastel tones: a card gets its fill from its own colour (--tone-override, set by withColor on
    React Flow's wrapper) or its type's default, plus a darker edge of the same hue. */
 
@@ -406,7 +459,10 @@ input[type="color"]::-webkit-color-swatch {
   --tone-default: var(--pastel-music);
 }
 
-.card--custom,
+.node-card--group {
+  --tone-default: var(--pastel-group);
+}
+
 .node-card--custom {
   --tone-default: var(--pastel-custom);
 }
@@ -456,6 +512,21 @@ input[type="color"]::-webkit-color-swatch {
   inset: 0;
 }
 
+/* A campaigns card swaps its title and description for inputs while it is renamed. */
+.card__edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.card__edit > input:first-child {
+  font-weight: 600;
+}
+
+.card__edit > input:last-child {
+  font-size: 0.875rem;
+}
+
 .card__desc {
   margin: 0;
   font-size: 0.875rem;
@@ -468,6 +539,17 @@ input[type="color"]::-webkit-color-swatch {
   margin-top: auto;
   font-size: 0.75rem;
   color: var(--muted);
+}
+
+/* A title that is not a link, on a trashed campaign's card. */
+.card__name {
+  font-weight: 600;
+}
+
+.card__buttons {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
 }
 
 .card__actions {
@@ -525,30 +607,6 @@ input[type="color"]::-webkit-color-swatch {
   color: var(--danger);
   font-size: 0.875rem;
   margin: 0;
-}
-
-/* Prefab field editor */
-
-.prefab-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.prefab-fields__row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.prefab-fields__row > input {
-  flex: 1;
-  min-width: 6rem;
-}
-
-.prefab-fields__error {
-  flex-basis: 100%;
 }
 
 /* Spinner */

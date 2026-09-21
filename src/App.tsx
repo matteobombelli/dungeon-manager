@@ -1,4 +1,4 @@
-import { Boxes, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { Link, Outlet, useNavigate } from "react-router";
 import { AuthProvider, useAuth } from "./auth/AuthProvider";
 import { IconButton } from "./components/IconButton";
@@ -19,7 +19,6 @@ function Header() {
       </Link>
       {user && (
         <>
-          <IconButton icon={Boxes} label="Prefabs" to="/prefabs" />
           <div className="app-header__user hover-actions">
             <span className="avatar" aria-hidden="true">
               {user.email[0]}

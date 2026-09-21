@@ -59,9 +59,9 @@ describe("PUT /campaigns/:id/graph", () => {
       ],
       // Links are directed, so the two between A and B are both kept.
       links: [
-        { id: "l1", source: a.id, target: b.id, label: "leads to" },
-        { id: "l2", source: b.id, target: a.id, label: "back to" },
-        { id: "l3", source: b.id, target: c.id, label: "" },
+        { id: "l1", source: a.id, target: b.id, label: "leads to", color: "#f6c9c9" },
+        { id: "l2", source: b.id, target: a.id, label: "back to", color: null },
+        { id: "l3", source: b.id, target: c.id, label: "", color: null },
       ],
     };
 
@@ -106,7 +106,9 @@ describe("PUT /campaigns/:id/graph", () => {
     expect(
       (await putGraph(campaign.id, { scenes, links: [{ id: "l3", source: a.id, target: c.id, label: "only" }] })).status,
     ).toBe(200);
-    expect((await getCampaign(campaign.id)).links).toEqual([{ id: "l3", source: a.id, target: c.id, label: "only" }]);
+    expect((await getCampaign(campaign.id)).links).toEqual([
+      { id: "l3", source: a.id, target: c.id, label: "only", color: null },
+    ]);
 
     expect((await putGraph(campaign.id, { scenes, links: [] })).status).toBe(200);
     expect((await getCampaign(campaign.id)).links).toEqual([]);
@@ -261,7 +263,7 @@ describe("scene deletion", () => {
 
     const after = await getCampaign(campaign.id);
     expect(after.scenes.map((s) => s.id).sort()).toEqual([a.id, c.id].sort());
-    expect(after.links).toEqual([{ id: "l3", source: a.id, target: c.id, label: "" }]);
+    expect(after.links).toEqual([{ id: "l3", source: a.id, target: c.id, label: "", color: null }]);
   });
 });
 

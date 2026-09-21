@@ -16,6 +16,7 @@ export const SceneLinkSchema = z.object({
   source: z.string().min(1),
   target: z.string().min(1),
   label: z.string().max(CAMPAIGN_GRAPH_LIMITS.maxLabel),
+  color: NodeColorSchema.default(null),
 });
 
 // Links are directed: A -> B and B -> A are distinct, only the same ordered pair twice is a duplicate.

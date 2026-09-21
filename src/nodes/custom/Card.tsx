@@ -15,7 +15,7 @@ export function CustomCard({ data, selected }: NodeProps<Node<CustomNodeData>>) 
   return (
     <BaseCard
       title={NODE_TYPES.custom.titleOf(data)}
-      typeLabel={data.prefabName || "Custom"}
+      typeLabel="Custom"
       shape={NODE_SHAPES.custom}
       tone="custom"
       selected={selected}

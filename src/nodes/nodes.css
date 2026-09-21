@@ -14,9 +14,11 @@
     filter var(--medium) var(--ease-out);
 }
 
-/* Two classes so this outranks the --tone-edge set on .node-card regardless of stylesheet order. */
+/* Selection deepens the card's own edge colour rather than switching to the global accent, so the
+   outline stays an offshoot of the node's fill. Two classes so this outranks the --tone-edge set on
+   .node-card regardless of stylesheet order. */
 .node-card.node-card--selected {
-  --tone-edge: var(--accent);
+  --tone-edge: color-mix(in oklab, var(--tone), var(--fg) 50%);
   animation:
     node-pop 220ms var(--ease-spring) backwards,
     node-glow 2.4s var(--ease-in-out) infinite;
@@ -42,7 +44,7 @@
     filter: drop-shadow(0 0 0 transparent);
   }
   50% {
-    filter: drop-shadow(0 0 8px var(--accent));
+    filter: drop-shadow(0 0 8px var(--tone-edge));
   }
 }
 
@@ -53,6 +55,17 @@
   min-height: 80px;
   justify-content: center;
   padding: 12px 14px;
+}
+
+/* Frame: scenes and groups. The colour is a thick border around a miniature of what is inside; two
+   classes so this outranks the border and radius set on .node-card regardless of stylesheet order. */
+.node-card.node-card--frame {
+  width: 200px;
+  gap: 6px;
+  padding: 8px 10px 10px;
+  border-width: 4px;
+  border-radius: calc(var(--radius) + 4px);
+  background: color-mix(in oklab, var(--tone), var(--bg) 85%);
 }
 
 .node-card--square {
@@ -179,6 +192,13 @@
   border-radius: 6px;
 }
 
+.node-card--glyph.node-card--frame {
+  width: 30px;
+  height: 22px;
+  border-width: 3px;
+  border-radius: 7px;
+}
+
 /* Content */
 
 .node-card__header,
@@ -235,6 +255,30 @@
   margin-bottom: 6px;
 }
 
+/* Miniature inside a frame: a canvas-coloured box with each node drawn as its shape. */
+.node-preview {
+  display: block;
+  width: 100%;
+  height: 90px;
+  border-radius: calc(var(--radius) - 4px);
+  background: var(--bg);
+}
+
+.node-preview--empty {
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* The type class carries --tone-default, the inline --tone-override a custom colour, like a card. */
+.node-preview__node {
+  --tone: var(--tone-override, var(--tone-default, var(--surface)));
+  fill: var(--tone);
+  stroke: color-mix(in oklab, var(--tone), var(--fg) 25%);
+  stroke-width: 1px;
+}
+
 /* Icon actions in the corner; revealed by hovering anywhere on the card. */
 .node-card__actions {
   position: absolute;
@@ -253,15 +297,50 @@
   opacity: 1;
 }
 
-/* Handles: dots in the tone edge colour that grow on hover. */
+/* Link handle: an outlined oval with a plus, shown while the card is hovered or a link is being
+   dragged out of it. */
 .node-card .node-card__handle {
-  width: 10px;
-  height: 10px;
-  background: var(--tone-edge);
-  border: 0;
-  transition: scale var(--fast) var(--ease-spring);
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 18px;
+  border-radius: 999px;
+  background: transparent;
+  border: var(--stroke) solid var(--tone-edge);
+  color: var(--tone-edge);
+  opacity: 0;
+  transition:
+    scale var(--fast) var(--ease-spring),
+    opacity var(--fast) var(--ease-out);
+}
+
+.node-card:hover .node-card__handle,
+.node-card .node-card__handle.connectingfrom {
+  opacity: 1;
 }
 
 .node-card .node-card__handle:hover {
-  scale: 1.6;
+  scale: 1.25;
+}
+
+.node-card .node-card__handle > svg {
+  pointer-events: none;
+}
+
+/* Drop target: invisible over the whole card, above its content so the pointer finds it. */
+.node-card .node-card__drop {
+  inset: 0;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  transform: none;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  z-index: 1;
+}
+
+.node-card:has(> .node-card__drop.valid) {
+  box-shadow: 0 0 0 3px var(--tone-edge);
 }

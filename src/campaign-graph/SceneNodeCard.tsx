@@ -1,7 +1,9 @@
 import { createContext, memo, useContext } from "react";
 import type { NodeProps } from "@xyflow/react";
 import { ExternalLink, Trash2 } from "lucide-react";
+import type { NodeOutline } from "../../shared/graph";
 import { BaseCard } from "../nodes/BaseCard";
+import { NodePreview } from "../nodes/NodePreview";
 import { IconButton } from "../components/IconButton";
 import type { SceneNode } from "./CampaignGraph";
 
@@ -13,15 +15,22 @@ export interface SceneActions {
 
 export const SceneActionsContext = createContext<SceneActions>({ onOpen: () => {}, onDelete: () => {} });
 
+/** Each scene's node outlines by scene id; a scene without an entry is empty. */
+export const ScenePreviewsContext = createContext<Record<string, NodeOutline[]>>({});
+
+const NONE: NodeOutline[] = [];
+
 // Memoised so a drag or rename of one scene does not re-render every other card.
 export const SceneNodeCard = memo(function SceneNodeCard({ id, data, selected }: NodeProps<SceneNode>) {
   const { onOpen, onDelete } = useContext(SceneActionsContext);
+  const nodes = useContext(ScenePreviewsContext)[id] ?? NONE;
   return (
     <BaseCard
       title={data.name}
-      shape="rect"
+      shape="frame"
       tone="scene"
       selected={selected}
+      connectable
       actions={
         <>
           <IconButton
@@ -43,6 +52,8 @@ export const SceneNodeCard = memo(function SceneNodeCard({ id, data, selected }:
           />
         </>
       }
-    />
+    >
+      <NodePreview nodes={nodes} />
+    </BaseCard>
   );
 });

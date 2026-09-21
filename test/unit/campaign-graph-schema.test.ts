@@ -32,6 +32,14 @@ describe("CampaignGraphSchema", () => {
     expect(CampaignGraphSchema.safeParse(graph([scene("a", "#abc")])).success).toBe(false);
   });
 
+  it("defaults an omitted link colour to null and rejects a bad one", () => {
+    const ok = CampaignGraphSchema.safeParse(graph([scene("a"), scene("b")], [{ id: "l1", source: "a", target: "b", label: "" }]));
+    expect(ok.success).toBe(true);
+    expect(ok.data?.links[0].color).toBeNull();
+    const bad = graph([scene("a"), scene("b")], [{ id: "l1", source: "a", target: "b", label: "", color: "red" }]);
+    expect(CampaignGraphSchema.safeParse(bad).success).toBe(false);
+  });
+
   it("defaults an omitted colour to null", () => {
     const result = CampaignGraphSchema.safeParse(graph([{ id: "a", x: 1, y: 2 }]));
     expect(result.success).toBe(true);

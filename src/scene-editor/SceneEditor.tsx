@@ -1,284 +1,157 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
-import {
-  Background,
-  ConnectionMode,
-  Controls,
-  ReactFlow,
-  ReactFlowProvider,
-  useEdgesState,
-  useNodesState,
-  useReactFlow,
-  useUpdateNodeInternals,
-  type DefaultEdgeOptions,
-  type Edge,
-  type OnConnect,
-  type OnNodeDrag,
-  type OnNodesDelete,
-  type OnSelectionChangeFunc,
-} from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
-import type { Prefab } from "../../shared/api";
-import { canonicalEdge, normaliseEdges, type Graph } from "../../shared/graph";
-import { newId } from "../../shared/ids";
-import type { NodeTypeId } from "../../shared/nodes/registry";
-import { SidePanel } from "../components/SidePanel";
-import { withColor } from "../nodes/color";
-import { nodeTypes, type AppNode } from "../nodes/registry";
-import { NODE_SHAPES } from "../nodes/shapes";
-import { motionDuration } from "../physics/motion";
-import { useForceLayout } from "../physics/useForceLayout";
-import { AddNodeMenu } from "./AddNodeMenu";
-import { EdgePanel } from "./EdgePanel";
-import { NodePanel } from "./NodePanel";
+import type { Graph } from "../../shared/graph";
+import type { GroupData } from "../../shared/nodes/group";
+import { HistoryButtons } from "../components/HistoryButtons";
+import { useHistory } from "../history/useHistory";
+import type { AppNode } from "../nodes/registry";
+import { NodeCanvas } from "./NodeCanvas";
 import { SaveIndicator } from "./SaveIndicator";
-import { toGraph, useAutosave } from "./useAutosave";
-import "../graph-canvas.css";
+import { fromGraph, toGraph, useAutosave } from "./useAutosave";
 
 export interface SceneEditorProps {
   sceneId: string;
   graph: Graph;
-  prefabs: Prefab[];
-  /** Toolbar element the add menu and save dot render into. */
+  /** Group open inside this scene (route param), or null. */
+  groupId: string | null;
+  /** Toolbar element the save dot renders into (add buttons are in-canvas now). */
   toolbarSlot: HTMLElement | null;
-  /** True while the layer zooms in or out; the canvas is scaled by an ancestor until it is false. */
+  /** The workspace's third layer; the group canvas is portalled into it while groupId is set. */
+  groupLayerSlot: HTMLElement | null;
   layerMoving: boolean;
+  groupLayerMoving: boolean;
   /** Receives the final graph when the editor unmounts. */
   onUnmount: (graph: Graph) => void;
-  /** Escape with nothing selected. */
+  /** Escape with nothing selected at scene level. */
   onClose: () => void;
-  onPrefabCreated: (prefab: Prefab) => void;
-  onPrefabUpdated: (prefab: Prefab) => void;
+  onOpenGroup: (id: string, at?: { x: number; y: number }) => void;
+  /** Escape with nothing selected at group level, and when the open group is not in the scene. */
+  onCloseGroup: () => void;
 }
 
-const defaultEdgeOptions: DefaultEdgeOptions = { type: "straight" };
-
-const DELETE_KEYS = ["Backspace", "Delete"];
-
-function fromGraph(graph: Graph): { nodes: AppNode[]; edges: Edge[] } {
-  return {
-    nodes: graph.nodes.map((n) =>
-      withColor({ id: n.id, type: n.type, position: { x: n.x, y: n.y }, data: n.data as Record<string, unknown> }, n.color)
-    ),
-    edges: normaliseEdges(graph.edges).map((e) => ({ id: e.id, source: e.source, target: e.target, label: e.label })),
-  };
-}
-
-// Round shapes collide on their radius; the rest on the half-diagonal so corners stay clear.
-function collisionRadius(node: AppNode): number {
-  const w = node.measured?.width ?? 200;
-  const h = node.measured?.height ?? 80;
-  const shape = NODE_SHAPES[node.type];
-  return shape === "circle" || shape === "pill" ? Math.max(w, h) / 2 : Math.hypot(w, h) / 2;
-}
-
-type Selection = { kind: "node"; id: string } | { kind: "edge"; id: string } | null;
-
-export function SceneEditor(props: SceneEditorProps) {
-  return (
-    <ReactFlowProvider>
-      <SceneEditorInner {...props} />
-    </ReactFlowProvider>
-  );
-}
-
-function SceneEditorInner({
+/** The scene document: the canvases below own placement and selection, this owns the graph. */
+export function SceneEditor({
   sceneId,
   graph,
-  prefabs,
+  groupId,
   toolbarSlot,
+  groupLayerSlot,
   layerMoving,
+  groupLayerMoving,
   onUnmount,
   onClose,
-  onPrefabCreated,
-  onPrefabUpdated,
+  onOpenGroup,
+  onCloseGroup,
 }: SceneEditorProps) {
-  const [initial] = useState(() => fromGraph(graph));
-  const [nodes, setNodes, onNodesChange] = useNodesState<AppNode>(initial.nodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(initial.edges);
-  const [selection, setSelection] = useState<Selection>(null);
-  // Mirrors `selection` for the Escape listener: React Flow reports a deselect from a passive effect,
-  // and a key press in the same frame would otherwise see the previous render's closure.
-  const selectionRef = useRef<Selection>(null);
-  const dragging = useRef(false);
-  const container = useRef<HTMLDivElement>(null);
-  const { screenToFlowPosition, deleteElements, fitView, getNodes } = useReactFlow<AppNode, Edge>();
-  const updateNodeInternals = useUpdateNodeInternals();
+  const [nodes, setNodes] = useState(() => fromGraph(graph.nodes));
+  const [sceneHolds, setSceneHolds] = useState<RefObject<boolean>[]>([]);
+  const [groupHolds, setGroupHolds] = useState<RefObject<boolean>[]>([]);
+  const holds = useMemo(() => [...sceneHolds, ...groupHolds], [sceneHolds, groupHolds]);
+  // A canvas reports its last nodes from its own unmount cleanup, which React runs before this
+  // component's, so every write lands in the ref too: state set there would never reach onUnmount.
+  const latest = useRef({ nodes, onUnmount });
+  latest.current.onUnmount = onUnmount;
+  const getNodes = useCallback(() => latest.current.nodes, []);
+  const { status, error } = useAutosave(sceneId, nodes, getNodes, holds);
+  const [revision, setRevision] = useState(0);
 
-  // Handle offsets are measured against the unscaled container, so they are only valid at scale 1.
-  useEffect(() => {
-    if (!layerMoving) updateNodeInternals(getNodes().map((n) => n.id));
-  }, [layerMoving, getNodes, updateNodeInternals]);
+  const commit = useCallback((next: AppNode[]) => {
+    latest.current.nodes = next;
+    setNodes(next);
+  }, []);
 
-  // Only the load-time settle re-fits the view; later settles would yank the camera mid-edit.
-  const settledOnce = useRef(false);
-  const onEnd = useCallback(() => {
-    if (settledOnce.current) return;
-    settledOnce.current = true;
-    // With nothing to place the layout settles inside its own layout effect, before React Flow has painted.
-    requestAnimationFrame(() => void fitView({ duration: motionDuration(300), maxZoom: 1 }));
-  }, [fitView]);
+  const history = useHistory<Graph>({
+    inputs: [nodes],
+    snapshot: () => toGraph(getNodes()),
+    holds,
+    restore: (doc) => {
+      commit(fromGraph(doc.nodes));
+      setRevision((r) => r + 1);
+    },
+    enabled: !layerMoving && !groupLayerMoving,
+  });
 
-  const layout = useForceLayout(nodes, edges, setNodes, { radius: collisionRadius, onEnd });
-  const { status, error } = useAutosave(sceneId, nodes, edges, [dragging, layout.isSimulating]);
-
-  const latest = useRef({ nodes, edges, onUnmount });
-  latest.current = { nodes, edges, onUnmount };
   useEffect(
     () => () => {
-      const { nodes, edges, onUnmount } = latest.current;
-      onUnmount(toGraph(nodes, edges));
+      const { nodes: last, onUnmount: done } = latest.current;
+      done(toGraph(last));
     },
     []
   );
 
-  // Escape clears the selection, or closes the scene when nothing is selected. Inputs, the side
-  // panel (.nokey), dialogs and the add menu (which preventDefaults) keep their own Escape.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || e.defaultPrevented) return;
-      if (e.target instanceof Element && e.target.closest("input, textarea, select, .nokey")) return;
-      if (document.querySelector('[role="dialog"]')) return;
-      if (!selectionRef.current) {
-        onClose();
-        return;
-      }
-      setNodes((ns) => ns.map((n) => (n.selected ? { ...n, selected: false } : n)));
-      setEdges((es) => es.map((ed) => (ed.selected ? { ...ed, selected: false } : ed)));
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, setNodes, setEdges]);
-
-  const onNodeDragStart: OnNodeDrag<AppNode> = useCallback(
-    (event, node, dragged) => {
-      dragging.current = true;
-      layout.onNodeDragStart(event, node, dragged);
-    },
-    [layout.onNodeDragStart]
-  );
-  const onNodeDragStop: OnNodeDrag<AppNode> = useCallback(
-    (event, node, dragged) => {
-      dragging.current = false;
-      layout.onNodeDragStop(event, node, dragged);
-    },
-    [layout.onNodeDragStop]
-  );
-
-  const onConnect: OnConnect = useCallback(
-    (conn) => {
-      if (conn.source === conn.target) return;
-      const { source, target } = canonicalEdge(conn);
-      setEdges((eds) =>
-        eds.some((e) => e.source === source && e.target === target)
-          ? eds
-          : [...eds, { id: newId(), source, target, label: "" }]
+  // A group's children are only ever edited on the group canvas, which reports them straight here;
+  // the scene canvas holds whatever copy it was last given, so its reports never overwrite them.
+  const onSceneNodes = useCallback(
+    (reported: AppNode[]) => {
+      const mine = new Map(latest.current.nodes.map((n) => [n.id, n]));
+      commit(
+        reported.map((n) => {
+          const kept = n.type === "group" ? mine.get(n.id)?.data.nodes : undefined;
+          return kept && kept !== n.data.nodes ? { ...n, data: { ...n.data, nodes: kept } } : n;
+        })
       );
     },
-    [setEdges]
+    [commit]
   );
 
-  const onSelectionChange: OnSelectionChangeFunc<AppNode, Edge> = useCallback(({ nodes: ns, edges: es }) => {
-    selectionRef.current = ns[0] ? { kind: "node", id: ns[0].id } : es[0] ? { kind: "edge", id: es[0].id } : null;
-    setSelection(selectionRef.current);
-  }, []);
+  const group = groupId ? nodes.find((n) => n.id === groupId && n.type === "group") : undefined;
+  const groupChildren = useMemo(() => (group ? fromGraph((group.data as GroupData).nodes) : []), [group]);
 
-  // Deleting a node mid-drag ends the drag without a stop event.
-  const onNodesDelete: OnNodesDelete<AppNode> = useCallback(() => {
-    dragging.current = false;
-  }, []);
+  // A group id that is not in this scene would strand its layer; drop back to the scene instead.
+  useEffect(() => {
+    if (groupId && !group) onCloseGroup();
+  }, [groupId, group, onCloseGroup]);
 
-  const addNode = useCallback(
-    (type: NodeTypeId, data: Record<string, unknown>) => {
-      const rect = container.current?.getBoundingClientRect();
-      const centre = rect
-        ? screenToFlowPosition({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 })
-        : { x: 0, y: 0 };
-      const id = newId();
-      setNodes((ns) => {
-        // Cascade successive additions so new nodes don't stack on the same point.
-        const offset = (ns.length % 8) * 32;
-        const position = { x: centre.x + offset, y: centre.y + offset };
-        return [
-          ...ns.map((n) => (n.selected ? { ...n, selected: false } : n)),
-          withColor({ id, type, position, data, selected: true }, null),
-        ];
-      });
-      layout.release([id]);
+  const reportChildren = useCallback(
+    (children: AppNode[]) => {
+      commit(
+        latest.current.nodes.map((n) =>
+          n.id === groupId ? { ...n, data: { ...n.data, nodes: toGraph(children).nodes } } : n
+        )
+      );
     },
-    [screenToFlowPosition, setNodes, layout.release]
+    [groupId, commit]
   );
-
-  const updateNodeData = (id: string, data: Record<string, unknown>) =>
-    setNodes((ns) => ns.map((n) => (n.id === id ? { ...n, data } : n)));
-
-  const updateNodeColor = (id: string, color: string | null) =>
-    setNodes((ns) => ns.map((n) => (n.id === id ? withColor(n, color) : n)));
-
-  const updateEdgeLabel = (id: string, label: string) =>
-    setEdges((es) => es.map((e) => (e.id === id ? { ...e, label } : e)));
-
-  const nodeById = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
-  const selectedNode = selection?.kind === "node" ? nodeById.get(selection.id) : undefined;
-  const selectedEdge = selection?.kind === "edge" ? edges.find((e) => e.id === selection.id) : undefined;
 
   return (
-    <div className="graph-canvas">
+    <>
       {toolbarSlot &&
         createPortal(
           <>
-            <AddNodeMenu prefabs={prefabs} onAdd={addNode} />
+            <HistoryButtons {...history} />
             <SaveIndicator status={status} error={error} />
           </>,
           toolbarSlot
         )}
-      <div className="graph-canvas__main">
-        <div className="graph-canvas__viewport" ref={container}>
-          {/* Distinct id: background pattern, arrow marker and a11y ids default to "1" and would collide with the campaign flow. */}
-          <ReactFlow<AppNode, Edge>
-            id="scene"
-            nodes={nodes}
-            edges={edges}
-            nodeTypes={nodeTypes}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onSelectionChange={onSelectionChange}
-            onNodeDragStart={onNodeDragStart}
-            onNodeDrag={layout.onNodeDrag}
-            onNodeDragStop={onNodeDragStop}
-            onNodesDelete={onNodesDelete}
-            connectionMode={ConnectionMode.Loose}
-            defaultEdgeOptions={defaultEdgeOptions}
-            deleteKeyCode={layerMoving ? null : DELETE_KEYS}
-            fitView
-            fitViewOptions={{ maxZoom: 1 }}
-          >
-            <Background />
-            <Controls />
-          </ReactFlow>
-        </div>
-        <SidePanel open={!!(selectedNode || selectedEdge)}>
-          {selectedNode ? (
-            <NodePanel
-              key={selectedNode.id}
-              node={selectedNode}
-              onChange={(data) => updateNodeData(selectedNode.id, data)}
-              onChangeColor={(color) => updateNodeColor(selectedNode.id, color)}
-              onDelete={() => void deleteElements({ nodes: [{ id: selectedNode.id }] })}
-              onPrefabCreated={onPrefabCreated}
-              onPrefabUpdated={onPrefabUpdated}
-            />
-          ) : selectedEdge ? (
-            <EdgePanel
-              key={selectedEdge.id}
-              edge={selectedEdge}
-              onChangeLabel={(label) => updateEdgeLabel(selectedEdge.id, label)}
-              onDelete={() => void deleteElements({ edges: [{ id: selectedEdge.id }] })}
-            />
-          ) : null}
-        </SidePanel>
-      </div>
-    </div>
+      <NodeCanvas
+        id="scene"
+        initialNodes={nodes}
+        revision={revision}
+        allowGroups
+        layerMoving={layerMoving}
+        active={groupId === null}
+        onNodes={onSceneNodes}
+        onEscape={onClose}
+        onOpenGroup={onOpenGroup}
+        onHolds={setSceneHolds}
+      />
+      {group &&
+        groupLayerSlot &&
+        createPortal(
+          <NodeCanvas
+            key={groupId}
+            id="group"
+            initialNodes={groupChildren}
+            revision={revision}
+            allowGroups={false}
+            layerMoving={groupLayerMoving}
+            active
+            onNodes={reportChildren}
+            onEscape={onCloseGroup}
+            onHolds={setGroupHolds}
+          />,
+          groupLayerSlot
+        )}
+    </>
   );
 }

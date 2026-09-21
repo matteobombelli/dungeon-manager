@@ -41,6 +41,50 @@
   position: relative;
 }
 
+/* Floating add button: bottom-right of the canvas, clear of React Flow's attribution. Above the
+   canvas and React Flow's own panels (z-index 5), below the side panel and modals. */
+.canvas-fab {
+  position: absolute;
+  right: 1rem;
+  bottom: 2.5rem;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.9rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: var(--shadow-hover);
+  transition:
+    transform var(--fast) var(--ease-spring),
+    box-shadow var(--medium) var(--ease-out);
+}
+
+.canvas-fab:hover {
+  transform: translateY(-2px);
+}
+
+.canvas-fab:active {
+  transform: translateY(0) scale(0.96);
+}
+
+/* On the node canvases the button opens a menu, so it is wrapped in the .add-menu anchor; the
+   wrapper takes the corner then and the button sits in its flow. */
+.add-menu:has(> .canvas-fab) {
+  position: absolute;
+  right: 1rem;
+  bottom: 2.5rem;
+  z-index: 5;
+}
+
+.add-menu:has(> .canvas-fab) > .canvas-fab {
+  position: static;
+}
+
 /* The aside animates its width while the content keeps the target width, so text never reflows mid-slide. */
 .graph-canvas__panel {
   --panel-width: 320px;
@@ -288,6 +332,29 @@
   gap: 0.25rem;
 }
 
+/* The panel clips its overflow while it animates its width, so a tooltip centred on its button is
+   cut off at either edge. Pin it to the button instead: to the left, or to the right for a button
+   that ends a row and so sits against the panel's right edge. */
+.graph-canvas__panel .icon-btn::after {
+  left: 0;
+  transform: none;
+}
+
+.graph-canvas__panel .icon-btn:last-child:not(:first-child)::after {
+  left: auto;
+  right: 0;
+}
+
+/* A full ability name and a skill name cannot share a row at the panel's minimum width; let them
+   stack there rather than truncate. */
+.event-check .editor-row {
+  flex-wrap: wrap;
+}
+
+.event-check .editor-row > label {
+  min-width: 7.5rem;
+}
+
 /* Add-node menu: a popover grid of miniature node cards with a label under each. */
 .add-menu {
   position: relative;
@@ -310,6 +377,17 @@
   box-shadow: var(--shadow-hover);
   transform-origin: top left;
   animation: menu-in var(--fast) var(--ease-out);
+}
+
+/* Opened from the FAB in the bottom-right corner: upward, and anchored to the button's right edge
+   so the list stays inside the canvas. */
+.add-menu__list.add-menu--up {
+  top: auto;
+  bottom: 100%;
+  left: auto;
+  right: 0;
+  margin: 0 0 0.25rem;
+  transform-origin: bottom right;
 }
 
 /* One row of the grid at a time, just behind the list itself. */
@@ -375,6 +453,10 @@
   --tone: var(--pastel-custom);
 }
 
+.add-menu__item:has(.node-card--group) {
+  --tone: var(--pastel-group);
+}
+
 .add-menu__item:hover,
 .add-menu__item:focus-visible {
   background: color-mix(in oklab, var(--tone, var(--surface)), var(--bg) 55%);
@@ -400,6 +482,24 @@
   --xy-controls-button-color: var(--fg);
   --xy-controls-button-color-hover: var(--accent);
   --xy-controls-button-border-color: var(--border);
+}
+
+/* Our node type is called "group", so React Flow's built-in group (sub-flow) node styling lands on
+   its wrapper: a bordered box, a selected shadow, and a fixed 150px width that would also become the
+   node's measured size. The card is the whole node here. */
+.react-flow__node.react-flow__node-group {
+  width: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.react-flow__node-group.selectable:hover,
+.react-flow__node-group.selectable.selected,
+.react-flow__node-group.selectable:focus,
+.react-flow__node-group.selectable:focus-visible {
+  box-shadow: none;
 }
 
 .react-flow__controls {
@@ -430,11 +530,11 @@
 
 /* Campaign routes are animated directed edges. */
 .react-flow__edge.animated .react-flow__edge-path {
-  stroke: var(--pastel-route);
+  stroke: var(--route, var(--pastel-route));
 }
 
 .react-flow__edge.animated .react-flow__edge-textbg {
-  stroke: var(--pastel-route);
+  stroke: var(--route, var(--pastel-route));
 }
 
 /* Edge label chip. */

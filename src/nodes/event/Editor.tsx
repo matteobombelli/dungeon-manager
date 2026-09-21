@@ -15,6 +15,14 @@ import { AddSectionMenu, EditorSection, useSections } from "../EditorSection";
 import type { NodeEditorProps } from "../types";
 
 const MAX_CHECKS = 20;
+const ABILITY_NAMES: Record<Ability, string> = {
+  str: "Strength",
+  dex: "Dexterity",
+  con: "Constitution",
+  int: "Intelligence",
+  wis: "Wisdom",
+  cha: "Charisma",
+};
 
 export function EventEditor({ data, onChange }: NodeEditorProps<EventData>) {
   const setChecks = (checks: EventCheck[]) => onChange({ ...data, checks });
@@ -67,13 +75,12 @@ export function EventEditor({ data, onChange }: NodeEditorProps<EventData>) {
           {data.checks.map((c) => (
             <div key={c.id} className={`editor-group event-check ability--${c.ability}`}>
               <div className="editor-row">
-                <span className={`ability-badge ability--${c.ability}`}>{c.ability.toUpperCase()}</span>
                 <label>
                   Ability
                   <select value={c.ability} onChange={(e) => setAbility(c, e.target.value as Ability)}>
                     {ABILITIES.map((a) => (
                       <option key={a} value={a}>
-                        {a.toUpperCase()}
+                        {ABILITY_NAMES[a]}
                       </option>
                     ))}
                   </select>
@@ -100,6 +107,8 @@ export function EventEditor({ data, onChange }: NodeEditorProps<EventData>) {
                     ))}
                   </select>
                 </label>
+              </div>
+              <div className="editor-row">
                 <label>
                   DC
                   <input

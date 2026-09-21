@@ -1,6 +1,8 @@
 import { env } from "cloudflare:workers";
 import { beforeAll, describe, expect, it } from "vitest";
 import type { Campaign, Scene, SceneLink } from "../../shared/api";
+import type { GraphNode, NodeOutline } from "../../shared/graph";
+import { NODE_TYPES } from "../../shared/nodes/registry";
 import { cookieHeader, jsonRequest, registerAndLogin, request } from "./helpers";
 
 // D1 state persists across tests within a file, so every registration needs its own email.
@@ -31,7 +33,8 @@ describe("POST /campaigns", () => {
     expect(campaign.description).toBe("");
     expect(campaign.id).toMatch(/^[0-9a-f-]{36}$/);
     expect(campaign.createdAt).toBe(campaign.updatedAt);
-    expect(Object.keys(campaign).sort()).toEqual(["createdAt", "description", "id", "name", "updatedAt"]);
+    expect(campaign.deletedAt).toBeNull();
+    expect(Object.keys(campaign).sort()).toEqual(["createdAt", "deletedAt", "description", "id", "name", "updatedAt"]);
   });
 
   it("keeps a supplied description", async () => {
@@ -104,6 +107,26 @@ describe("GET /campaigns/:id", () => {
     ]);
   });
 
+  it("returns every scene's node outlines, in order and without data", async () => {
+    const campaign = await createCampaign(alice, "With previews");
+    const a = await jsonRequest(`/campaigns/${campaign.id}/scenes`, "POST", { name: "Full" }, alice);
+    const b = await jsonRequest(`/campaigns/${campaign.id}/scenes`, "POST", { name: "Empty" }, alice);
+    const sceneA = ((await a.json()) as { scene: Scene }).scene;
+    const sceneB = ((await b.json()) as { scene: Scene }).scene;
+    const child = { id: "c", type: "event", x: 5, y: 6, color: null, data: NODE_TYPES.event.defaultData() };
+    const nodes: GraphNode[] = [
+      { id: "m", type: "map", x: 10, y: 20, color: "#aabbcc", data: NODE_TYPES.map.defaultData() },
+      { id: "g", type: "group", x: -30, y: 0.5, color: null, data: { name: "G", nodes: [child] } },
+    ];
+    expect((await jsonRequest(`/scenes/${sceneA.id}/graph`, "PUT", { nodes }, alice)).status).toBe(200);
+
+    const res = await request(`/campaigns/${campaign.id}`, { headers: cookieHeader(alice) });
+    const body = (await res.json()) as { previews: Record<string, NodeOutline[]> };
+    expect(Object.keys(body).sort()).toEqual(["campaign", "links", "previews", "scenes"]);
+    expect(body.previews[sceneA.id]).toEqual(nodes.map(({ id, type, x, y, color }) => ({ id, type, x, y, color })));
+    expect(body.previews[sceneB.id]).toEqual([]);
+  });
+
   it("returns 404 for another user's campaign", async () => {
     const campaign = await createCampaign(alice, "Private");
     const res = await request(`/campaigns/${campaign.id}`, { headers: cookieHeader(bob) });
@@ -150,17 +173,28 @@ describe("PATCH /campaigns/:id", () => {
 });
 
 describe("DELETE /campaigns/:id", () => {
-  it("deletes the campaign and cascades to its scenes", async () => {
-    const campaign = await createCampaign(alice, "Doomed");
-    const sceneRes = await jsonRequest(`/campaigns/${campaign.id}/scenes`, "POST", { name: "Doomed scene" }, alice);
+  it("moves the campaign to the trash and hides it and its scenes", async () => {
+    const own = await registerAndLogin("doomed@campaigns.test");
+    const campaign = await createCampaign(own.cookie, "Doomed");
+    const sceneRes = await jsonRequest(`/campaigns/${campaign.id}/scenes`, "POST", { name: "Doomed scene" }, own.cookie);
     const scene = ((await sceneRes.json()) as { scene: Scene }).scene;
 
-    const res = await request(`/campaigns/${campaign.id}`, { method: "DELETE", headers: cookieHeader(alice) });
+    const res = await request(`/campaigns/${campaign.id}`, { method: "DELETE", headers: cookieHeader(own.cookie) });
     expect(res.status).toBe(204);
     expect(await res.text()).toBe("");
 
-    expect((await request(`/campaigns/${campaign.id}`, { headers: cookieHeader(alice) })).status).toBe(404);
-    expect((await request(`/scenes/${scene.id}`, { headers: cookieHeader(alice) })).status).toBe(404);
+    expect((await request(`/campaigns/${campaign.id}`, { headers: cookieHeader(own.cookie) })).status).toBe(404);
+    expect((await request(`/scenes/${scene.id}`, { headers: cookieHeader(own.cookie) })).status).toBe(404);
+    const list = await request("/campaigns", { headers: cookieHeader(own.cookie) });
+    expect(((await list.json()) as { campaigns: Campaign[] }).campaigns).toEqual([]);
+    // The rows are still there, waiting in the trash.
+    expect(await env.DB.prepare("SELECT id FROM scenes WHERE id = ?").bind(scene.id).first()).not.toBeNull();
+  });
+
+  it("returns 404 for an already trashed campaign", async () => {
+    const campaign = await createCampaign(alice, "Twice");
+    expect((await request(`/campaigns/${campaign.id}`, { method: "DELETE", headers: cookieHeader(alice) })).status).toBe(204);
+    expect((await request(`/campaigns/${campaign.id}`, { method: "DELETE", headers: cookieHeader(alice) })).status).toBe(404);
   });
 
   it("returns 404 for another user's campaign and leaves it alone", async () => {
@@ -168,6 +202,105 @@ describe("DELETE /campaigns/:id", () => {
     const res = await request(`/campaigns/${campaign.id}`, { method: "DELETE", headers: cookieHeader(bob) });
     expect(res.status).toBe(404);
     expect((await request(`/campaigns/${campaign.id}`, { headers: cookieHeader(alice) })).status).toBe(200);
+  });
+});
+
+describe("GET /campaigns/trash", () => {
+  it("lists the caller's trashed campaigns, most recently deleted first", async () => {
+    const own = await registerAndLogin("trash@campaigns.test");
+    const first = await createCampaign(own.cookie, "First out");
+    const second = await createCampaign(own.cookie, "Second out");
+    const kept = await createCampaign(own.cookie, "Kept");
+    for (const c of [first, second]) {
+      await request(`/campaigns/${c.id}`, { method: "DELETE", headers: cookieHeader(own.cookie) });
+    }
+    // Two deletions can share a millisecond, so pin the timestamps the ordering is asserted on.
+    await env.DB.prepare("UPDATE campaigns SET deleted_at = ? WHERE id = ?").bind(1000, first.id).run();
+    await env.DB.prepare("UPDATE campaigns SET deleted_at = ? WHERE id = ?").bind(2000, second.id).run();
+
+    const res = await request("/campaigns/trash", { headers: cookieHeader(own.cookie) });
+    expect(res.status).toBe(200);
+    const { campaigns } = (await res.json()) as { campaigns: Campaign[] };
+    expect(campaigns.map((c) => c.id)).toEqual([second.id, first.id]);
+    expect(campaigns[0].deletedAt).toBe(2000);
+
+    const live = await request("/campaigns", { headers: cookieHeader(own.cookie) });
+    expect(((await live.json()) as { campaigns: Campaign[] }).campaigns.map((c) => c.id)).toEqual([kept.id]);
+  });
+
+  it("requires a session", async () => {
+    const res = await request("/campaigns/trash");
+    expect(res.status).toBe(401);
+  });
+});
+
+describe("POST /campaigns/:id/restore", () => {
+  it("brings the campaign back and empties the trash", async () => {
+    const own = await registerAndLogin("restore@campaigns.test");
+    const campaign = await createCampaign(own.cookie, "Back again");
+    const sceneRes = await jsonRequest(`/campaigns/${campaign.id}/scenes`, "POST", { name: "Kept scene" }, own.cookie);
+    const scene = ((await sceneRes.json()) as { scene: Scene }).scene;
+    await request(`/campaigns/${campaign.id}`, { method: "DELETE", headers: cookieHeader(own.cookie) });
+
+    const res = await jsonRequest(`/campaigns/${campaign.id}/restore`, "POST", undefined, own.cookie);
+    expect(res.status).toBe(200);
+    const restored = ((await res.json()) as { campaign: Campaign }).campaign;
+    expect(restored.id).toBe(campaign.id);
+    expect(restored.deletedAt).toBeNull();
+
+    const live = await request("/campaigns", { headers: cookieHeader(own.cookie) });
+    expect(((await live.json()) as { campaigns: Campaign[] }).campaigns.map((c) => c.id)).toEqual([campaign.id]);
+    const trash = await request("/campaigns/trash", { headers: cookieHeader(own.cookie) });
+    expect(((await trash.json()) as { campaigns: Campaign[] }).campaigns).toEqual([]);
+    expect((await request(`/scenes/${scene.id}`, { headers: cookieHeader(own.cookie) })).status).toBe(200);
+  });
+
+  it("returns 404 for a live campaign", async () => {
+    const campaign = await createCampaign(alice, "Never deleted");
+    const res = await jsonRequest(`/campaigns/${campaign.id}/restore`, "POST", undefined, alice);
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 404 for another user's trashed campaign", async () => {
+    const campaign = await createCampaign(alice, "Alice's trash");
+    await request(`/campaigns/${campaign.id}`, { method: "DELETE", headers: cookieHeader(alice) });
+
+    const res = await jsonRequest(`/campaigns/${campaign.id}/restore`, "POST", undefined, bob);
+    expect(res.status).toBe(404);
+    const row = await env.DB.prepare("SELECT deleted_at FROM campaigns WHERE id = ?").bind(campaign.id).first<{ deleted_at: number | null }>();
+    expect(row?.deleted_at).not.toBeNull();
+  });
+});
+
+describe("DELETE /campaigns/:id/permanent", () => {
+  it("deletes a trashed campaign and cascades to its scenes", async () => {
+    const campaign = await createCampaign(alice, "For good");
+    const sceneRes = await jsonRequest(`/campaigns/${campaign.id}/scenes`, "POST", { name: "Gone too" }, alice);
+    const scene = ((await sceneRes.json()) as { scene: Scene }).scene;
+    await request(`/campaigns/${campaign.id}`, { method: "DELETE", headers: cookieHeader(alice) });
+
+    const res = await request(`/campaigns/${campaign.id}/permanent`, { method: "DELETE", headers: cookieHeader(alice) });
+    expect(res.status).toBe(204);
+    expect(await res.text()).toBe("");
+
+    expect(await env.DB.prepare("SELECT id FROM campaigns WHERE id = ?").bind(campaign.id).first()).toBeNull();
+    expect(await env.DB.prepare("SELECT id FROM scenes WHERE id = ?").bind(scene.id).first()).toBeNull();
+  });
+
+  it("returns 404 for a live campaign and leaves it alone", async () => {
+    const campaign = await createCampaign(alice, "Still live");
+    const res = await request(`/campaigns/${campaign.id}/permanent`, { method: "DELETE", headers: cookieHeader(alice) });
+    expect(res.status).toBe(404);
+    expect((await request(`/campaigns/${campaign.id}`, { headers: cookieHeader(alice) })).status).toBe(200);
+  });
+
+  it("returns 404 for another user's trashed campaign", async () => {
+    const campaign = await createCampaign(alice, "Not bob's to purge");
+    await request(`/campaigns/${campaign.id}`, { method: "DELETE", headers: cookieHeader(alice) });
+
+    const res = await request(`/campaigns/${campaign.id}/permanent`, { method: "DELETE", headers: cookieHeader(bob) });
+    expect(res.status).toBe(404);
+    expect(await env.DB.prepare("SELECT id FROM campaigns WHERE id = ?").bind(campaign.id).first()).not.toBeNull();
   });
 });
 

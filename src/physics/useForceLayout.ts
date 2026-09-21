@@ -183,7 +183,6 @@ export function useForceLayout<N extends Node, E extends Edge>(
   const start = useCallback(
     (alpha: number) => {
       const { sim } = getState();
-      centroid.current = centroidOf(sim.nodes());
       if (sim.alpha() < alpha) sim.alpha(alpha);
       isSimulating.current = true;
       sim.restart();
@@ -219,6 +218,9 @@ export function useForceLayout<N extends Node, E extends Edge>(
       }
       return s;
     });
+    // The x/y forces read the centroid when the node list is set, so it is refreshed first or a
+    // first node would be pulled towards the origin.
+    centroid.current = centroidOf(simNodes);
     st.sim.nodes(simNodes);
     st.link.links(
       edgesRef.current

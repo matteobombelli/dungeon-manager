@@ -28,7 +28,7 @@ describe("GET /scenes/:id", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { scene: Scene; graph: Graph };
     expect(body.scene).toEqual(scene);
-    expect(body.graph).toEqual({ nodes: [], edges: [] });
+    expect(body.graph).toEqual({ nodes: [] });
   });
 
   it("returns 404 for another user's scene", async () => {

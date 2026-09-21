@@ -58,6 +58,63 @@
   color: var(--fg);
 }
 
+/* Collapsible sections: 1fr -> 0fr on a grid row is the only way to animate to the content's height. */
+.editor-group {
+  transition: gap var(--medium) var(--ease-out);
+}
+
+.editor-group__body {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows var(--medium) var(--ease-out);
+}
+
+.editor-group__content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.editor-group--collapsed {
+  gap: 0;
+}
+
+.editor-group--collapsed .editor-group__body {
+  grid-template-rows: 0fr;
+}
+
+.icon-btn.editor-group__chevron {
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-right: 0.15rem;
+}
+
+.editor-group__chevron svg {
+  transition: transform var(--medium) var(--ease-out);
+}
+
+.editor-group--collapsed .editor-group__chevron svg {
+  transform: rotate(-90deg);
+}
+
+/* Labelled text buttons in an actions row (Import JSON). */
+.editor-actions__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.8rem;
+}
+
+/* Encounter tracker. */
+.tracker-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
 /* Ability tones: one hue per ability, so checks and saves are tellable apart at a glance. */
 .ability--str {
   --tone: var(--ability-str);
@@ -88,16 +145,6 @@
   border-radius: calc(var(--radius) - 4px);
   background: color-mix(in srgb, var(--tone) 40%, transparent);
   color: var(--fg);
-}
-
-.ability-badge {
-  padding: 0.2rem 0.5rem;
-  border-radius: 999px;
-  background: var(--tone);
-  color: var(--fg);
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
 }
 
 .editor-group.event-check {
@@ -136,12 +183,18 @@
   --tone: var(--pastel-music);
 }
 
+.panel__header--group,
+.panel__body:has(.panel__header--group) {
+  --tone: var(--pastel-group);
+}
+
 .panel__header--map,
 .panel__header--statblock,
 .panel__header--character,
 .panel__header--event,
 .panel__header--custom,
-.panel__header--music {
+.panel__header--music,
+.panel__header--group {
   padding: 0.3rem 0.5rem;
   border-left: 3px solid color-mix(in oklab, var(--tone), var(--fg) 25%);
   border-radius: var(--radius);

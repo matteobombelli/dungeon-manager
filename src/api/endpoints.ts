@@ -4,9 +4,6 @@ import type {
   CampaignCreate,
   CampaignUpdate,
   LoginBody,
-  Prefab,
-  PrefabCreate,
-  PrefabUpdate,
   RegisterBody,
   Scene,
   SceneCreate,
@@ -16,7 +13,7 @@ import type {
 } from "../../shared/api";
 import { API_PREFIX } from "../../shared/api";
 import type { CampaignGraph } from "../../shared/campaign-graph";
-import type { Graph } from "../../shared/graph";
+import type { Graph, NodeOutline } from "../../shared/graph";
 import { api } from "./client";
 
 export const auth = {
@@ -29,10 +26,17 @@ export const auth = {
 export const campaigns = {
   list: () => api<{ campaigns: Campaign[] }>("/campaigns").then((r) => r.campaigns),
   create: (body: CampaignCreate) => api<{ campaign: Campaign }>("/campaigns", { body }).then((r) => r.campaign),
-  get: (id: string) => api<{ campaign: Campaign; scenes: Scene[]; links: SceneLink[] }>(`/campaigns/${id}`),
+  get: (id: string) =>
+    api<{ campaign: Campaign; scenes: Scene[]; links: SceneLink[]; previews: Record<string, NodeOutline[]> }>(
+      `/campaigns/${id}`
+    ),
   update: (id: string, body: CampaignUpdate) =>
     api<{ campaign: Campaign }>(`/campaigns/${id}`, { method: "PATCH", body }).then((r) => r.campaign),
   remove: (id: string) => api<void>(`/campaigns/${id}`, { method: "DELETE" }),
+  trash: () => api<{ campaigns: Campaign[] }>("/campaigns/trash").then((r) => r.campaigns),
+  restore: (id: string) =>
+    api<{ campaign: Campaign }>(`/campaigns/${id}/restore`, { method: "POST" }).then((r) => r.campaign),
+  destroy: (id: string) => api<void>(`/campaigns/${id}/permanent`, { method: "DELETE" }),
   createScene: (campaignId: string, body: SceneCreate) =>
     api<{ scene: Scene }>(`/campaigns/${campaignId}/scenes`, { body }).then((r) => r.scene),
   putGraph: (id: string, graph: CampaignGraph) =>
@@ -46,14 +50,6 @@ export const scenes = {
   remove: (id: string) => api<void>(`/scenes/${id}`, { method: "DELETE" }),
   putGraph: (id: string, graph: Graph) =>
     api<{ updatedAt: number }>(`/scenes/${id}/graph`, { method: "PUT", body: graph }),
-};
-
-export const prefabs = {
-  list: () => api<{ prefabs: Prefab[] }>("/prefabs").then((r) => r.prefabs),
-  create: (body: PrefabCreate) => api<{ prefab: Prefab }>("/prefabs", { body }).then((r) => r.prefab),
-  update: (id: string, body: PrefabUpdate) =>
-    api<{ prefab: Prefab }>(`/prefabs/${id}`, { method: "PATCH", body }).then((r) => r.prefab),
-  remove: (id: string) => api<void>(`/prefabs/${id}`, { method: "DELETE" }),
 };
 
 export const assets = {

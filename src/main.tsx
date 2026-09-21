@@ -9,7 +9,6 @@ import { RequireAuth } from "./auth/RequireAuth";
 import CampaignPage from "./routes/CampaignPage";
 import CampaignsPage from "./routes/CampaignsPage";
 import LoginPage from "./routes/LoginPage";
-import PrefabsPage from "./routes/PrefabsPage";
 import RegisterPage from "./routes/RegisterPage";
 import ScenePage from "./routes/ScenePage";
 import "./styles.css";
@@ -27,9 +26,8 @@ const router = createBrowserRouter(
           element: <RequireAuth />,
           children: [
             { path: "campaigns", element: <CampaignsPage /> },
-            { path: "campaigns/:id/scenes?/:sceneId?", element: <CampaignPage /> },
+            { path: "campaigns/:id/scenes?/:sceneId?/groups?/:groupId?", element: <CampaignPage /> },
             { path: "scenes/:id", element: <ScenePage /> },
-            { path: "prefabs", element: <PrefabsPage /> },
           ],
         },
       ],

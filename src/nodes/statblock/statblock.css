@@ -13,3 +13,31 @@
   font-size: 12px;
   resize: vertical;
 }
+
+/* Encounter HP on the card: the fill is current HP, the temp segment stacks on its right. */
+.hp-bar {
+  display: flex;
+  width: 100%;
+  height: 5px;
+  margin: 2px 0;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--tone-edge), transparent 60%);
+  overflow: hidden;
+}
+
+.hp-bar__fill {
+  background: var(--tone-edge);
+}
+
+.hp-bar__temp {
+  background: color-mix(in oklab, var(--tone-edge), var(--bg) 45%);
+}
+
+.node-card__line > .chip {
+  margin-right: 2px;
+}
+
+.node-card__line > svg {
+  vertical-align: -1px;
+  margin-left: 3px;
+}

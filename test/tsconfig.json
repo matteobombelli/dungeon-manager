@@ -11,5 +11,13 @@
     "isolatedModules": true,
     "types": ["@cloudflare/vitest-plugin/types"]
   },
-  "include": ["./**/*.ts", "../shared", "../worker", "../worker-configuration.d.ts"]
+  "include": [
+    "./**/*.ts",
+    "../shared",
+    "../worker",
+    "../worker-configuration.d.ts",
+    "../src/nodes/shapes.ts",
+    "../src/nodes/preview-box.ts",
+    "../src/campaign-graph/route-path.ts"
+  ]
 }

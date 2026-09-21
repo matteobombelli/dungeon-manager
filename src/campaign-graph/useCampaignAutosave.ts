@@ -1,12 +1,12 @@
 import type { RefObject } from "react";
-import type { Edge } from "@xyflow/react";
 import { API_PREFIX } from "../../shared/api";
 import { CampaignGraphSchema, type CampaignGraph } from "../../shared/campaign-graph";
 import { campaigns } from "../api/endpoints";
 import { useDocumentAutosave, type SaveStatus } from "../autosave/useDocumentAutosave";
 import type { SceneNode } from "./CampaignGraph";
+import type { RouteEdge } from "./RouteEdge";
 
-export function toCampaignGraph(nodes: SceneNode[], edges: Edge[]): CampaignGraph {
+export function toCampaignGraph(nodes: SceneNode[], edges: RouteEdge[]): CampaignGraph {
   return {
     scenes: nodes.map((n) => ({ id: n.id, x: n.position.x, y: n.position.y, color: n.data.color })),
     links: edges.map((e) => ({
@@ -14,6 +14,7 @@ export function toCampaignGraph(nodes: SceneNode[], edges: Edge[]): CampaignGrap
       source: e.source,
       target: e.target,
       label: typeof e.label === "string" ? e.label : "",
+      color: e.data?.color ?? null,
     })),
   };
 }
@@ -21,7 +22,7 @@ export function toCampaignGraph(nodes: SceneNode[], edges: Edge[]): CampaignGrap
 export function useCampaignAutosave(
   campaignId: string,
   nodes: SceneNode[],
-  edges: Edge[],
+  edges: RouteEdge[],
   holds: RefObject<boolean>[]
 ): { status: SaveStatus; error: string | null } {
   return useDocumentAutosave<CampaignGraph>({

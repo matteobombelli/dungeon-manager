@@ -1,5 +1,5 @@
 import { SceneUpdate } from "../../shared/api";
-import { GraphSchema, type Graph, type GraphEdge } from "../../shared/graph";
+import { GraphSchema, type Graph } from "../../shared/graph";
 import type { NodeTypeId } from "../../shared/nodes/registry";
 import { requireUser } from "../auth/session";
 import { getSceneOwned, toScene } from "../db";
@@ -10,7 +10,6 @@ const GRAPH_MAX_BYTES = 8 * 1024 * 1024;
 
 // A D1 statement takes at most 100 bind parameters.
 const NODES_PER_INSERT = 12; // 8 columns
-const EDGES_PER_INSERT = 20; // 5 columns
 
 interface NodeRow {
   id: string;
@@ -25,12 +24,9 @@ export function registerSceneRoutes(r: Router): void {
   r.get("/scenes/:id", async (c) => {
     const user = await requireUser(c);
     const scene = await getSceneOwned(c.env.DB, c.params.id, user.id);
-    const [nodes, edges] = await Promise.all([
-      c.env.DB.prepare("SELECT id, type, x, y, color, data FROM nodes WHERE scene_id = ? ORDER BY sort")
-        .bind(scene.id)
-        .all<NodeRow>(),
-      c.env.DB.prepare("SELECT id, source, target, label FROM edges WHERE scene_id = ?").bind(scene.id).all<GraphEdge>(),
-    ]);
+    const nodes = await c.env.DB.prepare("SELECT id, type, x, y, color, data FROM nodes WHERE scene_id = ? ORDER BY sort")
+      .bind(scene.id)
+      .all<NodeRow>();
     const graph: Graph = {
       nodes: nodes.results.map((n) => ({
         id: n.id,
@@ -40,7 +36,6 @@ export function registerSceneRoutes(r: Router): void {
         color: n.color,
         data: JSON.parse(n.data) as unknown,
       })),
-      edges: edges.results,
     };
     return json({ scene: toScene(scene), graph });
   });
@@ -70,11 +65,7 @@ export function registerSceneRoutes(r: Router): void {
     const db = c.env.DB;
     const updatedAt = now();
 
-    // Edges reference nodes, so they are cleared first and written last.
-    const statements = [
-      db.prepare("DELETE FROM edges WHERE scene_id = ?").bind(scene.id),
-      db.prepare("DELETE FROM nodes WHERE scene_id = ?").bind(scene.id),
-    ];
+    const statements = [db.prepare("DELETE FROM nodes WHERE scene_id = ?").bind(scene.id)];
     for (let i = 0; i < graph.nodes.length; i += NODES_PER_INSERT) {
       const slice = graph.nodes.slice(i, i + NODES_PER_INSERT);
       statements.push(
@@ -85,18 +76,6 @@ export function registerSceneRoutes(r: Router): void {
               .join(", ")}`,
           )
           .bind(...slice.flatMap((n, j) => [scene.id, n.id, n.type, n.x, n.y, n.color, JSON.stringify(n.data), i + j])),
-      );
-    }
-    for (let i = 0; i < graph.edges.length; i += EDGES_PER_INSERT) {
-      const slice = graph.edges.slice(i, i + EDGES_PER_INSERT);
-      statements.push(
-        db
-          .prepare(
-            `INSERT INTO edges (scene_id, id, source, target, label) VALUES ${slice
-              .map(() => "(?, ?, ?, ?, ?)")
-              .join(", ")}`,
-          )
-          .bind(...slice.flatMap((e) => [scene.id, e.id, e.source, e.target, e.label])),
       );
     }
     statements.push(db.prepare("UPDATE scenes SET updated_at = ? WHERE id = ?").bind(updatedAt, scene.id));

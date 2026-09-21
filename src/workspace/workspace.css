@@ -1,10 +1,21 @@
-/* Campaign and scene canvases are stacked layers; opening a scene zooms its layer in over the campaign. */
+/* Campaign, scene and group canvases are stacked layers; opening a scene zooms its layer in over
+   the campaign, and a group in over the scene. */
 
 .workspace {
   position: relative;
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  transition:
+    opacity var(--slow) var(--ease-in-out),
+    transform var(--slow) var(--ease-in-out);
+}
+
+/* Going back from the campaign level fades the workspace out before the route changes. */
+.workspace--leaving {
+  opacity: 0;
+  transform: scale(0.96);
+  pointer-events: none;
 }
 
 .workspace__layer {
@@ -23,13 +34,15 @@
   pointer-events: none;
 }
 
-/* The scene grows out of its node on the campaign canvas and shrinks back to the centre on close. */
-.workspace__layer--scene {
+/* A layer grows out of its card on the canvas below and shrinks back to the centre on close. */
+.workspace__layer--scene,
+.workspace__layer--group {
   transform-origin: var(--origin, 50% 50%);
 }
 
 @starting-style {
-  .workspace__layer--scene {
+  .workspace__layer--scene,
+  .workspace__layer--group {
     opacity: 0;
     transform: scale(0.8);
   }
@@ -56,11 +69,30 @@
   color: var(--muted);
 }
 
-.workspace__description {
-  flex: 1;
-  min-width: 6rem;
-  font-size: 0.85rem;
+/* Breadcrumb: every level but the last is a text button. */
+.crumb {
+  display: inline-block;
+  max-width: 12rem;
+  padding: 0;
+  border: 0;
+  border-radius: calc(var(--radius) / 2);
+  background: none;
   color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color var(--fast) var(--ease-out);
+}
+
+.crumb:not(.crumb--current):hover {
+  color: var(--fg);
+  text-decoration: underline;
+}
+
+.crumb--current {
+  color: var(--fg);
+  font-weight: 600;
+  cursor: default;
 }
 
 /* Portal targets for each level's add button and save dot; the inactive level's slot is hidden. */
@@ -70,10 +102,6 @@
 
 .workspace__tools[hidden] {
   display: none;
-}
-
-.workspace__end {
-  margin-left: auto;
 }
 
 .workspace__fade {

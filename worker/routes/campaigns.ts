@@ -1,19 +1,20 @@
 import { CampaignCreate, CampaignUpdate, SceneCreate, type SceneLink } from "../../shared/api";
 import { CampaignGraphSchema } from "../../shared/campaign-graph";
+import type { NodeOutline } from "../../shared/graph";
 import { newId } from "../../shared/ids";
 import { requireUser } from "../auth/session";
-import { getCampaignOwned, toCampaign, toScene, type CampaignRow, type SceneRow } from "../db";
+import { getCampaignOwned, getCampaignTrashed, toCampaign, toScene, type CampaignRow, type SceneRow } from "../db";
 import { json, now, parseJson } from "../http";
 import { HttpError, type Router } from "../router";
 
 // A D1 statement takes at most 100 bind parameters.
-const LINKS_PER_INSERT = 20; // 5 columns
+const LINKS_PER_INSERT = 16; // 6 columns
 
 export function registerCampaignRoutes(r: Router): void {
   r.get("/campaigns", async (c) => {
     const user = await requireUser(c);
     const { results } = await c.env.DB.prepare(
-      "SELECT id, user_id, name, description, created_at, updated_at FROM campaigns WHERE user_id = ? ORDER BY created_at DESC",
+      "SELECT id, user_id, name, description, created_at, updated_at, deleted_at FROM campaigns WHERE user_id = ? AND deleted_at IS NULL ORDER BY created_at DESC",
     )
       .bind(user.id)
       .all<CampaignRow>();
@@ -31,6 +32,7 @@ export function registerCampaignRoutes(r: Router): void {
       description: body.description,
       created_at: t,
       updated_at: t,
+      deleted_at: null,
     };
     await c.env.DB.prepare(
       "INSERT INTO campaigns (id, user_id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
@@ -40,20 +42,39 @@ export function registerCampaignRoutes(r: Router): void {
     return json({ campaign: toCampaign(row) }, 201);
   });
 
+  // The router takes the first matching route, so this has to come before /campaigns/:id.
+  r.get("/campaigns/trash", async (c) => {
+    const user = await requireUser(c);
+    const { results } = await c.env.DB.prepare(
+      "SELECT id, user_id, name, description, created_at, updated_at, deleted_at FROM campaigns WHERE user_id = ? AND deleted_at IS NOT NULL ORDER BY deleted_at DESC",
+    )
+      .bind(user.id)
+      .all<CampaignRow>();
+    return json({ campaigns: results.map(toCampaign) });
+  });
+
   r.get("/campaigns/:id", async (c) => {
     const user = await requireUser(c);
     const campaign = await getCampaignOwned(c.env.DB, c.params.id, user.id);
-    const [scenes, links] = await Promise.all([
+    const [scenes, links, outlines] = await Promise.all([
       c.env.DB.prepare(
         "SELECT id, campaign_id, user_id, name, x, y, color, created_at, updated_at FROM scenes WHERE campaign_id = ? ORDER BY created_at DESC",
       )
         .bind(campaign.id)
         .all<SceneRow>(),
-      c.env.DB.prepare("SELECT id, source, target, label FROM scene_links WHERE campaign_id = ?")
+      c.env.DB.prepare("SELECT id, source, target, label, color FROM scene_links WHERE campaign_id = ?")
         .bind(campaign.id)
         .all<SceneLink>(),
+      // Every scene's nodes without their data: the card miniatures need the whole campaign at once.
+      c.env.DB.prepare(
+        "SELECT scene_id, id, type, x, y, color FROM nodes WHERE scene_id IN (SELECT id FROM scenes WHERE campaign_id = ?) ORDER BY sort",
+      )
+        .bind(campaign.id)
+        .all<NodeOutline & { scene_id: string }>(),
     ]);
-    return json({ campaign: toCampaign(campaign), scenes: scenes.results.map(toScene), links: links.results });
+    const previews: Record<string, NodeOutline[]> = Object.fromEntries(scenes.results.map((s) => [s.id, []]));
+    for (const { scene_id, ...outline } of outlines.results) previews[scene_id].push(outline);
+    return json({ campaign: toCampaign(campaign), scenes: scenes.results.map(toScene), links: links.results, previews });
   });
 
   r.patch("/campaigns/:id", async (c) => {
@@ -72,10 +93,31 @@ export function registerCampaignRoutes(r: Router): void {
     return json({ campaign: toCampaign(next) });
   });
 
+  // A delete only moves the campaign to the trash; its scenes and nodes stay until it is purged.
   r.delete("/campaigns/:id", async (c) => {
     const user = await requireUser(c);
     const campaign = await getCampaignOwned(c.env.DB, c.params.id, user.id);
-    // Scenes, nodes and edges go with it through ON DELETE CASCADE.
+    const t = now();
+    await c.env.DB.prepare("UPDATE campaigns SET deleted_at = ?, updated_at = ? WHERE id = ? AND user_id = ?")
+      .bind(t, t, campaign.id, user.id)
+      .run();
+    return new Response(null, { status: 204 });
+  });
+
+  r.post("/campaigns/:id/restore", async (c) => {
+    const user = await requireUser(c);
+    const row = await getCampaignTrashed(c.env.DB, c.params.id, user.id);
+    const next: CampaignRow = { ...row, deleted_at: null, updated_at: now() };
+    await c.env.DB.prepare("UPDATE campaigns SET deleted_at = NULL, updated_at = ? WHERE id = ? AND user_id = ?")
+      .bind(next.updated_at, next.id, user.id)
+      .run();
+    return json({ campaign: toCampaign(next) });
+  });
+
+  r.delete("/campaigns/:id/permanent", async (c) => {
+    const user = await requireUser(c);
+    const campaign = await getCampaignTrashed(c.env.DB, c.params.id, user.id);
+    // Scenes and nodes go with it through ON DELETE CASCADE.
     await c.env.DB.prepare("DELETE FROM campaigns WHERE id = ? AND user_id = ?").bind(campaign.id, user.id).run();
     return new Response(null, { status: 204 });
   });
@@ -133,11 +175,11 @@ export function registerCampaignRoutes(r: Router): void {
       statements.push(
         db
           .prepare(
-            `INSERT INTO scene_links (campaign_id, id, source, target, label) VALUES ${slice
-              .map(() => "(?, ?, ?, ?, ?)")
+            `INSERT INTO scene_links (campaign_id, id, source, target, label, color) VALUES ${slice
+              .map(() => "(?, ?, ?, ?, ?, ?)")
               .join(", ")}`,
           )
-          .bind(...slice.flatMap((l) => [campaign.id, l.id, l.source, l.target, l.label])),
+          .bind(...slice.flatMap((l) => [campaign.id, l.id, l.source, l.target, l.label, l.color])),
       );
     }
     statements.push(db.prepare("UPDATE campaigns SET updated_at = ? WHERE id = ?").bind(updatedAt, campaign.id));

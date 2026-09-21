@@ -1,12 +1,14 @@
 import { useState, type ReactNode } from "react";
-import { Import, Plus, X } from "lucide-react";
+import { Import, Minus, Plus, RotateCcw, X } from "lucide-react";
 import {
   ABILITIES,
   CHALLENGE_RATINGS,
+  CONDITIONS,
   SKILLS,
   STATBLOCK_SECTIONS,
   STATBLOCK_SECTION_LABELS,
   abilityModifier,
+  defaultTracker,
   formatModifier,
   xpForCR,
   type Ability,
@@ -15,6 +17,7 @@ import {
   type Skill,
   type StatblockData,
   type StatblockSection,
+  type Tracker,
 } from "../../../shared/nodes/statblock";
 import { IconButton } from "../../components/IconButton";
 import { AddSectionMenu, EditorSection, useSections } from "../EditorSection";
@@ -22,6 +25,8 @@ import type { NodeEditorProps } from "../types";
 import { ImportDialog } from "./ImportDialog";
 
 const SPEED_MODES = ["walk", "fly", "swim", "climb", "burrow"];
+const DEFAULT_LEGENDARY_ACTIONS = 3;
+const SRD_CONDITIONS = new Set<string>(CONDITIONS);
 
 export function StatblockEditor({ data, onChange }: NodeEditorProps<StatblockData>) {
   const [importOpen, setImportOpen] = useState(false);
@@ -60,6 +65,23 @@ export function StatblockEditor({ data, onChange }: NodeEditorProps<StatblockDat
 
   const modes = [...SPEED_MODES, ...Object.keys(data.speed).filter((m) => !SPEED_MODES.includes(m))];
 
+  const maxHp = data.hitPoints.average;
+  const perRound = data.legendaryActionsPerRound ?? DEFAULT_LEGENDARY_ACTIONS;
+  const resistances = data.legendaryResistances ?? 0;
+  // A block saved before the tracker existed reads as untouched; every write stores a whole tracker.
+  const tracker = data.tracker ?? defaultTracker();
+  const setTracker = (patch: Partial<Tracker>) => set("tracker", { ...tracker, ...patch });
+
+  const shiftHp = (delta: number) =>
+    setTracker({ currentHp: Math.min(maxHp, Math.max(0, (tracker.currentHp ?? maxHp) + delta)) });
+
+  const toggleCondition = (condition: string) =>
+    setTracker({
+      conditions: tracker.conditions.includes(condition)
+        ? tracker.conditions.filter((c) => c !== condition)
+        : [...tracker.conditions, condition],
+    });
+
   const section = (id: StatblockSection, children: ReactNode, actions?: ReactNode) =>
     sections.isVisible(id) ? (
       <EditorSection
@@ -89,8 +111,128 @@ export function StatblockEditor({ data, onChange }: NodeEditorProps<StatblockDat
   return (
     <>
       <div className="editor-actions">
-        <IconButton icon={Import} label="Import JSON" onClick={() => setImportOpen(true)} />
+        <button
+          type="button"
+          className="button--secondary editor-actions__button"
+          onClick={() => setImportOpen(true)}
+        >
+          <Import size={16} strokeWidth={1.75} aria-hidden="true" />
+          Import JSON
+        </button>
       </div>
+
+      {section(
+        "encounter",
+        <>
+          <div className="editor-row">
+            <label>
+              Current HP
+              <input
+                type="number"
+                min={0}
+                max={maxHp}
+                value={tracker.currentHp ?? ""}
+                placeholder={String(maxHp)}
+                onChange={(e) =>
+                  setTracker({
+                    currentHp: e.target.value === "" ? null : Math.min(maxHp, wholeNumber(e.target.value)),
+                  })
+                }
+              />
+            </label>
+            <IconButton icon={Minus} label="Damage" onClick={() => shiftHp(-1)} />
+            <IconButton icon={Plus} label="Heal" onClick={() => shiftHp(1)} />
+          </div>
+          <label>
+            Temp HP
+            <input
+              type="number"
+              min={0}
+              value={tracker.tempHp}
+              onChange={(e) => setTracker({ tempHp: wholeNumber(e.target.value) })}
+            />
+          </label>
+          <div className="tracker-chips">
+            {[...CONDITIONS, ...tracker.conditions.filter((c) => !SRD_CONDITIONS.has(c))].map((c) => (
+              <button
+                key={c}
+                type="button"
+                className={tracker.conditions.includes(c) ? "chip chip--on" : "chip"}
+                aria-pressed={tracker.conditions.includes(c)}
+                onClick={() => toggleCondition(c)}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+          <ConditionInput
+            onAdd={(condition) => {
+              if (!tracker.conditions.includes(condition)) toggleCondition(condition);
+            }}
+          />
+          <label className="editor-inline">
+            <input
+              type="checkbox"
+              checked={tracker.concentrating}
+              onChange={(e) => setTracker({ concentrating: e.target.checked })}
+            />
+            Concentrating
+          </label>
+          {data.legendaryActions.length > 0 && (
+            <>
+              <div className="editor-row">
+                <label>
+                  Legendary actions left
+                  <input
+                    type="number"
+                    min={0}
+                    value={tracker.legendaryActionsLeft ?? ""}
+                    placeholder={String(perRound)}
+                    onChange={(e) =>
+                      setTracker({ legendaryActionsLeft: e.target.value === "" ? null : wholeNumber(e.target.value) })
+                    }
+                  />
+                </label>
+                <label>
+                  Per round
+                  <input
+                    type="number"
+                    min={0}
+                    value={perRound}
+                    onChange={(e) => set("legendaryActionsPerRound", wholeNumber(e.target.value))}
+                  />
+                </label>
+              </div>
+              <div className="editor-row">
+                <label>
+                  Resistances left
+                  <input
+                    type="number"
+                    min={0}
+                    value={tracker.legendaryResistancesLeft ?? ""}
+                    placeholder={String(resistances)}
+                    onChange={(e) =>
+                      setTracker({
+                        legendaryResistancesLeft: e.target.value === "" ? null : wholeNumber(e.target.value),
+                      })
+                    }
+                  />
+                </label>
+                <label>
+                  Total
+                  <input
+                    type="number"
+                    min={0}
+                    value={resistances}
+                    onChange={(e) => set("legendaryResistances", wholeNumber(e.target.value))}
+                  />
+                </label>
+              </div>
+            </>
+          )}
+        </>,
+        <IconButton icon={RotateCcw} label="Reset tracker" onClick={() => set("tracker", defaultTracker())} />,
+      )}
 
       {section(
         "identity",
@@ -143,7 +285,7 @@ export function StatblockEditor({ data, onChange }: NodeEditorProps<StatblockDat
           </div>
           <div className="editor-row">
             <label>
-              Hit points
+              Max hit points
               <input
                 type="number"
                 min={0}
@@ -299,13 +441,35 @@ export function StatblockEditor({ data, onChange }: NodeEditorProps<StatblockDat
         "legendary",
         data.legendaryActions,
         "legendaryActions",
-        <label>
-          Legendary description
-          <textarea
-            value={data.legendaryDescription}
-            onChange={(e) => set("legendaryDescription", e.target.value)}
-          />
-        </label>,
+        <>
+          <div className="editor-row">
+            <label>
+              Actions per round
+              <input
+                type="number"
+                min={0}
+                value={perRound}
+                onChange={(e) => set("legendaryActionsPerRound", wholeNumber(e.target.value))}
+              />
+            </label>
+            <label>
+              Legendary resistances
+              <input
+                type="number"
+                min={0}
+                value={resistances}
+                onChange={(e) => set("legendaryResistances", wholeNumber(e.target.value))}
+              />
+            </label>
+          </div>
+          <label>
+            Legendary description
+            <textarea
+              value={data.legendaryDescription}
+              onChange={(e) => set("legendaryDescription", e.target.value)}
+            />
+          </label>
+        </>,
       )}
 
       {section(
@@ -323,6 +487,26 @@ export function StatblockEditor({ data, onChange }: NodeEditorProps<StatblockDat
 
       <ImportDialog open={importOpen} onClose={() => setImportOpen(false)} onImport={onChange} />
     </>
+  );
+}
+
+function ConditionInput({ onAdd }: { onAdd: (condition: string) => void }) {
+  const [text, setText] = useState("");
+  return (
+    <label>
+      Other condition
+      <input
+        value={text}
+        placeholder="add and press Enter"
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key !== "Enter" || text.trim() === "") return;
+          e.preventDefault();
+          onAdd(text.trim().slice(0, 60));
+          setText("");
+        }}
+      />
+    </label>
   );
 }
 

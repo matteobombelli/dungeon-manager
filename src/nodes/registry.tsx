@@ -6,6 +6,7 @@ import { characterNodeUI } from "./character";
 import { eventNodeUI } from "./event";
 import { mapNodeUI } from "./map";
 import { musicNodeUI } from "./music";
+import { groupNodeUI } from "./group";
 import { statblockNodeUI } from "./statblock";
 import "./nodes.css";
 
@@ -17,6 +18,7 @@ export const NODE_TYPES_UI: { [K in NodeTypeId]: NodeTypeUI<Extract<NodeDataOf<K
   character: characterNodeUI,
   event: eventNodeUI,
   music: musicNodeUI,
+  group: groupNodeUI,
 };
 
 // `color` is persisted per node (GraphNodeSchema); withColor() mirrors it onto `style` for the card.
@@ -30,4 +32,5 @@ export const nodeTypes: NodeTypes = {
   character: NODE_TYPES_UI.character.Card,
   event: NODE_TYPES_UI.event.Card,
   music: NODE_TYPES_UI.music.Card,
+  group: NODE_TYPES_UI.group.Card,
 };

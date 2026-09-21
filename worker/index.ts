@@ -3,7 +3,6 @@ import { json } from "./http";
 import { registerAssetRoutes } from "./routes/assets";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerCampaignRoutes } from "./routes/campaigns";
-import { registerPrefabRoutes } from "./routes/prefabs";
 import { registerSceneRoutes } from "./routes/scenes";
 import { Router } from "./router";
 
@@ -20,7 +19,6 @@ router.get("/health", async (c) => {
 registerAuthRoutes(router);
 registerCampaignRoutes(router);
 registerSceneRoutes(router);
-registerPrefabRoutes(router);
 registerAssetRoutes(router);
 
 export default {

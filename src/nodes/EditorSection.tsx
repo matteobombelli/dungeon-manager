@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Plus, X } from "lucide-react";
+import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { ChevronDown, Plus, X } from "lucide-react";
 import { IconButton } from "../components/IconButton";
+import { useCollapsed } from "./collapsed";
+import { NodeIdContext } from "./types";
 import "./editor-section.css";
 
 export interface EditorSectionProps {
@@ -13,14 +15,26 @@ export interface EditorSectionProps {
 }
 
 export function EditorSection({ id, title, actions, onRemove, children }: EditorSectionProps) {
+  const nodeId = useContext(NodeIdContext);
+  const [collapsed, toggle] = useCollapsed(nodeId, id);
+
   return (
-    <section className="editor-group" data-section={id}>
+    <section className={`editor-group${collapsed ? " editor-group--collapsed" : ""}`} data-section={id}>
       <h4 className="editor-group__title">
+        <IconButton
+          icon={ChevronDown}
+          label={collapsed ? `Expand ${title}` : `Collapse ${title}`}
+          className="editor-group__chevron"
+          ariaExpanded={!collapsed}
+          onClick={toggle}
+        />
         <span>{title}</span>
         {actions}
         {onRemove && <IconButton icon={X} label="Remove section" onClick={onRemove} />}
       </h4>
-      {children}
+      <div className="editor-group__body">
+        <div className="editor-group__content">{children}</div>
+      </div>
     </section>
   );
 }

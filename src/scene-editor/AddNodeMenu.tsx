@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { Plus } from "lucide-react";
-import type { Prefab } from "../../shared/api";
-import { NODE_TYPE_IDS, NODE_TYPES, type NodeTypeId } from "../../shared/nodes/registry";
-import { IconButton } from "../components/IconButton";
+import { GROUP_CHILD_TYPE_IDS, NODE_TYPE_IDS, NODE_TYPES, type NodeTypeId } from "../../shared/nodes/registry";
 import { NODE_SHAPES, type NodeShape } from "../nodes/shapes";
 
 export interface AddNodeMenuProps {
-  prefabs: Prefab[];
   onAdd: (type: NodeTypeId, data: Record<string, unknown>) => void;
+  /** Groups do not nest, so the entry is hidden inside one. */
+  allowGroups: boolean;
+  /** Opens the list above the button, for the floating button in the canvas corner. */
+  up?: boolean;
 }
 
-export function AddNodeMenu({ prefabs, onAdd }: AddNodeMenuProps) {
+export function AddNodeMenu({ onAdd, allowGroups, up }: AddNodeMenuProps) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
 
@@ -21,7 +22,7 @@ export function AddNodeMenu({ prefabs, onAdd }: AddNodeMenuProps) {
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      // Claims the key so the scene editor's Escape (close scene) does not fire on the same press.
+      // Claims the key so the canvas's Escape (close the layer) does not fire on the same press.
       e.preventDefault();
       setOpen(false);
     };
@@ -38,31 +39,25 @@ export function AddNodeMenu({ prefabs, onAdd }: AddNodeMenuProps) {
     setOpen(false);
   };
 
+  const types: readonly NodeTypeId[] = allowGroups ? NODE_TYPE_IDS : GROUP_CHILD_TYPE_IDS;
+
   return (
     <div className="add-menu" ref={root}>
-      <IconButton
-        icon={Plus}
-        label="Add node"
-        active={open}
-        ariaHasPopup="menu"
-        ariaExpanded={open}
+      <button
+        type="button"
+        className="canvas-fab"
+        aria-label="Add node"
+        aria-haspopup="menu"
+        aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-      />
+      >
+        <Plus size={18} aria-hidden="true" /> <span>Node</span>
+      </button>
       {open && (
-        <ul className="add-menu__list" role="menu">
-          {NODE_TYPE_IDS.map((id) => (
+        <ul className={`add-menu__list${up ? " add-menu--up" : ""}`} role="menu">
+          {types.map((id) => (
             <li key={id} role="none">
               <Entry shape={NODE_SHAPES[id]} tone={id} label={NODE_TYPES[id].label} onClick={() => pick(id, NODE_TYPES[id].defaultData())} />
-            </li>
-          ))}
-          {prefabs.map((p) => (
-            <li key={p.id} role="none">
-              <Entry
-                shape="diamond"
-                tone="custom"
-                label={p.name}
-                onClick={() => pick("custom", { prefabId: p.id, prefabName: p.name, fields: p.fields, values: {} })}
-              />
             </li>
           ))}
         </ul>

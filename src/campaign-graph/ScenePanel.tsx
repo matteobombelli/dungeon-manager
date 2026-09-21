@@ -15,7 +15,6 @@ export interface ScenePanelProps {
 
 export function ScenePanel({ node, autoFocus, onRename, onChangeColor, onOpen, onDelete }: ScenePanelProps) {
   const [name, setName] = useState(node.data.name);
-  // The breadcrumb renames the same scene, so the field follows the node rather than its mount value.
   useEffect(() => setName(node.data.name), [node.data.name]);
 
   function commit() {
@@ -44,10 +43,12 @@ export function ScenePanel({ node, autoFocus, onRename, onChangeColor, onOpen, o
             if (e.key === "Escape") setName(node.data.name);
           }}
         />
-        <IconButton icon={ExternalLink} label="Open scene" onClick={onOpen} />
         <IconButton icon={Trash2} label="Delete scene" danger onClick={onDelete} />
       </header>
       <ColorField label="Colour" value={node.data.color} onChange={onChangeColor} />
+      <button type="button" className="button--primary" onClick={onOpen}>
+        <ExternalLink size={16} strokeWidth={1.75} aria-hidden="true" /> Open scene
+      </button>
     </div>
   );
 }

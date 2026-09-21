@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { PrefabFieldsSchema, type PrefabFieldKind } from "../prefab";
+import { CustomFieldsSchema, type CustomFieldKind } from "./custom-fields";
 import type { NodeTypeDef } from "./registry";
 
-const valueMatchesKind: Record<PrefabFieldKind, (v: unknown) => boolean> = {
+const valueMatchesKind: Record<CustomFieldKind, (v: unknown) => boolean> = {
   text: (v) => typeof v === "string",
   number: (v) => v === null || typeof v === "number",
   image: (v) => v === null || typeof v === "string",
@@ -10,9 +10,7 @@ const valueMatchesKind: Record<PrefabFieldKind, (v: unknown) => boolean> = {
 
 export const CustomNodeSchema = z
   .object({
-    prefabId: z.string().nullable(),
-    prefabName: z.string(),
-    fields: PrefabFieldsSchema,
+    fields: CustomFieldsSchema,
     values: z.record(z.string(), z.union([z.string(), z.number(), z.null()])),
   })
   .superRefine((data, ctx) => {
@@ -30,8 +28,6 @@ export type CustomNodeData = z.infer<typeof CustomNodeSchema>;
 
 export function defaultData(): CustomNodeData {
   return {
-    prefabId: null,
-    prefabName: "Custom",
     fields: [{ key: "notes", label: "Notes", kind: "text" }],
     values: { notes: "" },
   };
@@ -40,7 +36,7 @@ export function defaultData(): CustomNodeData {
 export function titleOf(data: CustomNodeData): string {
   const first = data.fields.find((f) => f.kind === "text");
   const value = first ? data.values[first.key] : undefined;
-  return typeof value === "string" && value.trim() !== "" ? value : data.prefabName || "Custom";
+  return typeof value === "string" && value.trim() !== "" ? value : "Custom";
 }
 
 export const customType: NodeTypeDef<CustomNodeData> = {

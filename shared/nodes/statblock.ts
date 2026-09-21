@@ -74,6 +74,7 @@ export const FeatureSchema = z.object({ name: z.string(), desc: z.string() });
 export type Feature = z.infer<typeof FeatureSchema>;
 
 export const STATBLOCK_SECTIONS = [
+  "encounter",
   "identity",
   "defenses",
   "abilities",
@@ -89,6 +90,7 @@ export const STATBLOCK_SECTIONS = [
 ] as const;
 export type StatblockSection = (typeof STATBLOCK_SECTIONS)[number];
 export const STATBLOCK_SECTION_LABELS: Record<StatblockSection, string> = {
+  encounter: "Encounter",
   identity: "Identity",
   defenses: "Defenses",
   abilities: "Abilities",
@@ -102,6 +104,28 @@ export const STATBLOCK_SECTION_LABELS: Record<StatblockSection, string> = {
   legendary: "Legendary actions",
   description: "Description",
 };
+
+/** The SRD conditions, offered as toggles in the encounter tracker; free text is allowed too. */
+export const CONDITIONS = [
+  "blinded", "charmed", "deafened", "exhaustion", "frightened", "grappled", "incapacitated",
+  "invisible", "paralyzed", "petrified", "poisoned", "prone", "restrained", "stunned", "unconscious",
+] as const;
+
+// Encounter state. Absent on blocks saved before it existed and treated as "untouched":
+// currentHp null means at max, counters null mean at their per-round maximum.
+export const TrackerSchema = z.object({
+  currentHp: z.int().min(0).nullable(),
+  tempHp: z.int().min(0),
+  conditions: z.array(z.string().max(60)).max(40),
+  concentrating: z.boolean(),
+  legendaryActionsLeft: z.int().min(0).nullable(),
+  legendaryResistancesLeft: z.int().min(0).nullable(),
+});
+export type Tracker = z.infer<typeof TrackerSchema>;
+
+export function defaultTracker(): Tracker {
+  return { currentHp: null, tempHp: 0, conditions: [], concentrating: false, legendaryActionsLeft: null, legendaryResistancesLeft: null };
+}
 
 export const StatblockSchema = z.object({
   name: z.string(),
@@ -128,7 +152,11 @@ export const StatblockSchema = z.object({
   reactions: z.array(FeatureSchema),
   legendaryActions: z.array(FeatureSchema),
   legendaryDescription: z.string(),
+  // Optional, not defaulted: stored rows are never re-parsed on read, so the editor supplies the defaults (3 and 0).
+  legendaryActionsPerRound: z.int().min(0).optional(),
+  legendaryResistances: z.int().min(0).optional(),
   description: z.string(),
+  tracker: TrackerSchema.optional(),
   // Editor sections the user removed; absent means all shown. Data behind a hidden section is kept.
   hiddenSections: z.array(z.enum(STATBLOCK_SECTIONS)).optional(),
 });

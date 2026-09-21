@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router";
-import type { Campaign, Prefab, Scene, SceneLink } from "../../shared/api";
-import { campaigns as campaignsApi, prefabs as prefabsApi } from "../api/endpoints";
+import type { Campaign, Scene, SceneLink } from "../../shared/api";
+import type { NodeOutline } from "../../shared/graph";
+import { campaigns as campaignsApi } from "../api/endpoints";
 import { Spinner } from "../components/Spinner";
 import { CampaignWorkspace } from "../workspace/CampaignWorkspace";
 
-type Loaded = { campaign: Campaign; scenes: Scene[]; links: SceneLink[]; prefabs: Prefab[] };
+type Loaded = { campaign: Campaign; scenes: Scene[]; links: SceneLink[]; previews: Record<string, NodeOutline[]> };
 
 // Loads once per campaign; the `sceneId` param is the workspace's concern and never refetches.
 export default function CampaignPage() {
@@ -17,9 +18,10 @@ export default function CampaignPage() {
     let cancelled = false;
     setLoaded(null);
     setError(null);
-    Promise.all([campaignsApi.get(id), prefabsApi.list()])
-      .then(([r, prefabs]) => {
-        if (!cancelled) setLoaded({ ...r, prefabs });
+    campaignsApi
+      .get(id)
+      .then((r) => {
+        if (!cancelled) setLoaded(r);
       })
       .catch((err: unknown) => {
         if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load campaign");
