@@ -152,39 +152,32 @@
 }
 
 /* Node panel header tinted with the node type's pastel, or the node's own colour when it has one
-   (NodePanel sets --tone inline). The body carries the type tone too, for the section dots. */
-.panel__header--map,
-.panel__body:has(.panel__header--map) {
+   (NodePanel sets --tone inline). */
+.panel__header--map {
   --tone: var(--pastel-map);
 }
 
-.panel__header--statblock,
-.panel__body:has(.panel__header--statblock) {
+.panel__header--statblock {
   --tone: var(--pastel-statblock);
 }
 
-.panel__header--character,
-.panel__body:has(.panel__header--character) {
+.panel__header--character {
   --tone: var(--pastel-character);
 }
 
-.panel__header--event,
-.panel__body:has(.panel__header--event) {
+.panel__header--event {
   --tone: var(--pastel-event);
 }
 
-.panel__header--custom,
-.panel__body:has(.panel__header--custom) {
+.panel__header--custom {
   --tone: var(--pastel-custom);
 }
 
-.panel__header--music,
-.panel__body:has(.panel__header--music) {
+.panel__header--music {
   --tone: var(--pastel-music);
 }
 
-.panel__header--group,
-.panel__body:has(.panel__header--group) {
+.panel__header--group {
   --tone: var(--pastel-group);
 }
 

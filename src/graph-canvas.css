@@ -261,6 +261,10 @@
   resize: vertical;
 }
 
+.panel__body [data-section="description"] textarea {
+  min-height: 20rem;
+}
+
 .panel__body .editor-inline {
   display: flex;
   flex-direction: row;
@@ -293,16 +297,6 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--muted);
-}
-
-/* A dot of the node's tone (editor-section.css puts it on .panel__body) keeps a long panel scannable. */
-.editor-group__title::before {
-  content: "";
-  width: 0.45rem;
-  height: 0.45rem;
-  margin-right: 0.4rem;
-  border-radius: 50%;
-  background: color-mix(in oklab, var(--tone, var(--surface)), var(--fg) 25%);
 }
 
 .editor-group__title > span {

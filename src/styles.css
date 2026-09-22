@@ -211,6 +211,12 @@ button.chip:hover:not(:disabled) {
   outline-offset: 2px;
 }
 
+/* Text fields mark focus on their own border; the offset ring clashes with the rounded corners. */
+:is(input:not([type="checkbox"], [type="range"]), select, textarea):focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
 input[type="checkbox"] {
   width: 1rem;
   height: 1rem;

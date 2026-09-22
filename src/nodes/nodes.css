@@ -297,17 +297,17 @@
   opacity: 1;
 }
 
-/* Link handle: an outlined oval with a plus, shown while the card is hovered or a link is being
-   dragged out of it. */
+/* Link handle: an upright oval in the card's outline colour with a plus in the card's fill, shown
+   while the card is hovered or a link is being dragged out of it. */
 .node-card .node-card__handle {
   display: grid;
   place-items: center;
-  width: 26px;
-  height: 18px;
+  width: 18px;
+  height: 26px;
   border-radius: 999px;
-  background: transparent;
-  border: var(--stroke) solid var(--tone-edge);
-  color: var(--tone-edge);
+  background: var(--tone-edge);
+  border: 0;
+  color: color-mix(in oklab, var(--tone), var(--bg) 85%);
   opacity: 0;
   transition:
     scale var(--fast) var(--ease-spring),
