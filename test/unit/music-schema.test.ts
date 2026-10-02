@@ -5,7 +5,7 @@ describe("MusicSchema", () => {
   it("accepts the default data", () => {
     const result = MusicSchema.safeParse(defaultData());
     expect(result.success).toBe(true);
-    expect(result.data).toEqual({ title: "", assetId: null, loop: true, volume: 0.8, fadeIn: 5 });
+    expect(result.data).toEqual({ title: "", assetId: null, loop: true, volume: 0.8, fadeIn: 3 });
   });
 
   it("accepts an attached asset", () => {

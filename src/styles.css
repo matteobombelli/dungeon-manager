@@ -224,11 +224,75 @@ input[type="checkbox"] {
   accent-color: var(--accent);
 }
 
+/* Drawn by hand: native sliders differ per platform (macOS 26 draws a pill thumb taller than the box
+   and clips it). RangeInput sets --fill so the track is painted up to the thumb. */
 input[type="range"] {
+  --thumb: 1rem;
+  --track: 0.375rem;
+  appearance: none;
+  height: var(--thumb);
   padding: 0;
   border: 0;
+  border-radius: 0;
   background: transparent;
-  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: var(--track);
+  border-radius: var(--track);
+  background: linear-gradient(to right, var(--accent) var(--fill, 0%), var(--border) var(--fill, 0%));
+}
+
+input[type="range"]::-moz-range-track {
+  height: var(--track);
+  border-radius: var(--track);
+  background: linear-gradient(to right, var(--accent) var(--fill, 0%), var(--border) var(--fill, 0%));
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: var(--thumb);
+  height: var(--thumb);
+  margin-top: calc((var(--track) - var(--thumb)) / 2);
+  border: var(--stroke) solid var(--border);
+  border-radius: 50%;
+  background: var(--bg);
+  box-shadow: var(--shadow);
+  transition: transform var(--fast) var(--ease-out);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: var(--thumb);
+  height: var(--thumb);
+  box-sizing: border-box;
+  border: var(--stroke) solid var(--border);
+  border-radius: 50%;
+  background: var(--bg);
+  box-shadow: var(--shadow);
+  transition: transform var(--fast) var(--ease-out);
+}
+
+input[type="range"]:hover::-webkit-slider-thumb,
+input[type="range"]:active::-webkit-slider-thumb {
+  transform: scale(1.1);
+}
+
+input[type="range"]:hover::-moz-range-thumb,
+input[type="range"]:active::-moz-range-thumb {
+  transform: scale(1.1);
+}
+
+input[type="range"]:focus-visible {
+  outline: none;
+}
+
+input[type="range"]:focus-visible::-webkit-slider-thumb {
+  border-color: var(--accent);
+}
+
+input[type="range"]:focus-visible::-moz-range-thumb {
+  border-color: var(--accent);
 }
 
 input[type="color"] {

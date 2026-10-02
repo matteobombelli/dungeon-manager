@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ImageField } from "../components/ImageField";
+import { RangeInput } from "../components/RangeInput";
 import { MAP_LIMITS, type MapNodeData } from "../../shared/nodes/map";
 import { resizeCells } from "./mapOps";
 
@@ -40,8 +41,7 @@ export function SettingsPanel({ data, onChange }: SettingsPanelProps) {
       />
       <label>
         Background opacity {Math.round(data.backgroundOpacity * 100)}%
-        <input
-          type="range"
+        <RangeInput
           min={0}
           max={1}
           step={0.05}

@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 export interface PlayOptions {
   loop: boolean;
   volume: number;
-  /** Seconds to ramp up from silence, and back down when paused or replaced; 0 cuts straight in and out. */
+  /** Seconds to ramp up from silence, and back down when paused or crossfaded out; 0 cuts straight in and out. */
   fadeIn: number;
 }
 
@@ -32,89 +32,108 @@ const SILENT: AudioPlayer = {
 
 const AudioPlayerContext = createContext<AudioPlayer>(SILENT);
 
+// One of the two players a crossfade needs: the outgoing track fades out on one while the incoming
+// track fades in on the other.
+interface Deck {
+  el: HTMLAudioElement | null;
+  loaded: { id: string; url: string } | null;
+  /** The loaded track's fade, which it also fades out over when paused or replaced. */
+  fade: number;
+  /** The volume a fade in is heading for, so the slider can move it mid-fade. */
+  target: number;
+  frame: number | null;
+}
+
+const newDeck = (): Deck => ({ el: null, loaded: null, fade: 0, target: 1, frame: null });
+
+function stopFade(deck: Deck) {
+  if (deck.frame !== null) cancelAnimationFrame(deck.frame);
+  deck.frame = null;
+}
+
+/**
+ * Ramps a deck from its current volume to `to` ("target" follows the slider), then calls `done`. A
+ * newer ramp on the same deck cancels this one along with its `done`, so the last button pressed wins.
+ */
+function ramp(deck: Deck, to: number | "target", seconds: number, done?: () => void) {
+  const el = deck.el;
+  if (!el) return;
+  stopFade(deck);
+  const goal = () => (to === "target" ? deck.target : to);
+  if (seconds <= 0) {
+    el.volume = goal();
+    done?.();
+    return;
+  }
+  const from = el.volume;
+  const start = performance.now();
+  const step = (time: number) => {
+    const progress = Math.min(1, (time - start) / (seconds * 1000));
+    el.volume = from + (goal() - from) * progress;
+    if (progress < 1) deck.frame = requestAnimationFrame(step);
+    else {
+      deck.frame = null;
+      done?.();
+    }
+  };
+  deck.frame = requestAnimationFrame(step);
+}
+
 export function AudioPlayerProvider({ children }: { children: ReactNode }) {
-  // One element for the whole workspace: playback survives cards unmounting as the canvas pans
-  // and panels open, and only one track can sound at a time.
-  const elementRef = useRef<HTMLAudioElement>(null);
-  const loaded = useRef<{ id: string; url: string } | null>(null);
+  // Two elements for the whole workspace: playback survives cards unmounting as the canvas pans
+  // and panels open, and one track is the active one while another may still be fading out.
+  const decks = useRef<[Deck, Deck]>([newDeck(), newDeck()]);
+  const activeIndex = useRef(0);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  // The volume a fade in is heading for, so the slider can move it mid-fade.
-  const targetVolume = useRef(1);
-  // The loaded track's fade, which it also fades out over when paused or replaced.
-  const loadedFade = useRef(0);
-  const fadeFrame = useRef<number | null>(null);
+  const active = () => decks.current[activeIndex.current];
+  const isActive = (el: HTMLAudioElement) => active().el === el;
 
-  const stopFade = useCallback(() => {
-    if (fadeFrame.current !== null) cancelAnimationFrame(fadeFrame.current);
-    fadeFrame.current = null;
-  }, []);
-
-  /**
-   * Ramps from the current volume to `to` ("target" follows the slider), then calls `done`. A newer
-   * ramp cancels this one along with its `done`, so the last button pressed always wins.
-   */
-  const ramp = useCallback(
-    (el: HTMLAudioElement, to: number | "target", seconds: number, done?: () => void) => {
-      stopFade();
-      const goal = () => (to === "target" ? targetVolume.current : to);
-      if (seconds <= 0) {
-        el.volume = goal();
-        done?.();
-        return;
-      }
-      const from = el.volume;
-      const start = performance.now();
-      const step = (time: number) => {
-        const progress = Math.min(1, (time - start) / (seconds * 1000));
-        el.volume = from + (goal() - from) * progress;
-        if (progress < 1) fadeFrame.current = requestAnimationFrame(step);
-        else {
-          fadeFrame.current = null;
-          done?.();
-        }
-      };
-      fadeFrame.current = requestAnimationFrame(step);
-    },
-    [stopFade],
-  );
-
-  // Leaving the campaign unmounts the element; a fade still running would keep scheduling frames.
-  useEffect(() => stopFade, [stopFade]);
+  // Leaving the campaign unmounts the elements; a fade still running would keep scheduling frames.
+  useEffect(() => () => decks.current.forEach(stopFade), []);
 
   const play = useCallback((id: string, url: string, opts: PlayOptions) => {
-    const el = elementRef.current;
-    if (!el) return;
+    const current = decks.current[activeIndex.current];
     // The url is part of the key: a node whose track was replaced must not resume the old file.
-    const replacing = loaded.current?.id !== id || loaded.current.url !== url;
-    const start = () => {
-      if (replacing) {
-        loaded.current = { id, url };
-        el.src = url;
-        setCurrentTime(0);
-        setDuration(0);
+    const holds = (deck: Deck) => deck.loaded?.id === id && deck.loaded.url === url;
+    let deck = current;
+    if (!holds(current)) {
+      // Crossfade: the sounding track fades out over its own fade while the new one fades in on the
+      // other deck. Switching back mid-fade finds the track still loaded there and ramps it back up.
+      activeIndex.current = 1 - activeIndex.current;
+      deck = decks.current[activeIndex.current];
+      if (current.el && !current.el.paused) {
+        const el = current.el;
+        ramp(current, 0, current.fade, () => el.pause());
       }
-      el.loop = opts.loop;
-      targetVolume.current = opts.volume;
-      loadedFade.current = opts.fadeIn;
-      // A resume caught mid fade-out ramps back up from where it is rather than dropping to silence.
-      if (el.paused && opts.fadeIn > 0) el.volume = 0;
-      ramp(el, "target", opts.fadeIn);
-      // Autoplay policy or a broken asset rejects; the card must not keep showing "playing".
-      el.play().catch(() => setPlayingId((current) => (current === id ? null : current)));
-    };
+      if (!holds(deck) && deck.el) {
+        stopFade(deck);
+        deck.loaded = { id, url };
+        deck.el.src = url;
+      }
+      setCurrentTime(deck.el?.currentTime ?? 0);
+      setDuration(deck.el && Number.isFinite(deck.el.duration) ? deck.el.duration : 0);
+    }
+    const el = deck.el;
+    if (!el) return;
+    el.loop = opts.loop;
+    deck.target = opts.volume;
+    deck.fade = opts.fadeIn;
+    // A track caught mid fade-out ramps back up from where it is rather than dropping to silence.
+    if (el.paused && opts.fadeIn > 0) el.volume = 0;
+    ramp(deck, "target", opts.fadeIn);
     setPlayingId(id);
-    // The track that is sounding fades out over its own fade before the new one starts.
-    if (replacing && !el.paused) ramp(el, 0, loadedFade.current, start);
-    else start();
-  }, [ramp]);
+    // Autoplay policy or a broken asset rejects; the card must not keep showing "playing".
+    el.play().catch(() => setPlayingId((playing) => (playing === id ? null : playing)));
+  }, []);
 
   const pause = useCallback(() => {
-    const el = elementRef.current;
+    const deck = decks.current[activeIndex.current];
     setPlayingId(null);
-    if (el) ramp(el, 0, loadedFade.current, () => el.pause());
-  }, [ramp]);
+    const el = deck.el;
+    if (el) ramp(deck, 0, deck.fade, () => el.pause());
+  }, []);
 
   const toggle = useCallback(
     (id: string, url: string, opts: PlayOptions) => {
@@ -125,13 +144,15 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   );
 
   const setVolume = useCallback((volume: number) => {
-    targetVolume.current = volume;
+    const deck = decks.current[activeIndex.current];
+    deck.target = volume;
     // Mid-fade the ramp picks the new target up on its next frame.
-    if (elementRef.current && fadeFrame.current === null) elementRef.current.volume = volume;
+    if (deck.el && deck.frame === null) deck.el.volume = volume;
   }, []);
 
   const setLoop = useCallback((loop: boolean) => {
-    if (elementRef.current) elementRef.current.loop = loop;
+    const el = decks.current[activeIndex.current].el;
+    if (el) el.loop = loop;
   }, []);
 
   const value = useMemo<AudioPlayer>(
@@ -141,14 +162,19 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
   return (
     <AudioPlayerContext.Provider value={value}>
-      {/* No controls: the music cards and the node editor drive it. `ended` does not fire while
-          looping, so a looping track keeps its playingId. */}
-      <audio
-        ref={elementRef}
-        onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
-        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
-        onEnded={() => setPlayingId(null)}
-      />
+      {/* No controls: the music cards and the node editor drive them. Only the active deck reports;
+          `ended` does not fire while looping, so a looping track keeps its playingId. */}
+      {decks.current.map((deck, i) => (
+        <audio
+          key={i}
+          ref={(el) => {
+            deck.el = el;
+          }}
+          onTimeUpdate={(e) => isActive(e.currentTarget) && setCurrentTime(e.currentTarget.currentTime)}
+          onLoadedMetadata={(e) => isActive(e.currentTarget) && setDuration(e.currentTarget.duration)}
+          onEnded={(e) => isActive(e.currentTarget) && setPlayingId(null)}
+        />
+      ))}
       {children}
     </AudioPlayerContext.Provider>
   );

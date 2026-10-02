@@ -1,6 +1,7 @@
 import { Eraser, Grid2x2, Paintbrush, Pen, Spline, Undo2, type LucideIcon } from "lucide-react";
 import { MAP_LIMITS, type MapPaletteEntry } from "../../shared/nodes/map";
 import { IconButton } from "../components/IconButton";
+import { RangeInput } from "../components/RangeInput";
 import { ZOOM_LEVELS, type Tool, type ToolState } from "./tools";
 
 export interface ToolbarProps {
@@ -52,8 +53,7 @@ export function Toolbar({ tools, palette, onChange, canUndo, onUndo }: ToolbarPr
           </label>
           <label className="map-editor__field">
             Width {tools.penWidth}
-            <input
-              type="range"
+            <RangeInput
               min={1}
               max={MAP_LIMITS.maxStrokeWidth}
               value={tools.penWidth}

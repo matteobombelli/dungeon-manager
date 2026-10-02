@@ -4,6 +4,7 @@ import { assets } from "../../api/endpoints";
 import { useAudioPlayer } from "../../audio/AudioPlayerProvider";
 import { AudioField } from "../../components/AudioField";
 import { IconButton } from "../../components/IconButton";
+import { RangeInput } from "../../components/RangeInput";
 import type { NodeEditorProps } from "../types";
 
 export function MusicEditor({ nodeId, data, onChange }: NodeEditorProps<MusicData>) {
@@ -34,8 +35,7 @@ export function MusicEditor({ nodeId, data, onChange }: NodeEditorProps<MusicDat
       </label>
       <label>
         Volume {Math.round(data.volume * 100)}%
-        <input
-          type="range"
+        <RangeInput
           min={0}
           max={1}
           step={0.01}
