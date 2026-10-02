@@ -17,7 +17,7 @@ export const MusicSchema = z.object({
 export type MusicData = z.infer<typeof MusicSchema>;
 
 export function defaultData(): MusicData {
-  return { title: "", assetId: null, loop: true, volume: 0.8, fadeIn: 3 };
+  return { title: "", assetId: null, loop: true, volume: 0.6, fadeIn: 3 };
 }
 
 export function titleOf(data: MusicData): string {
