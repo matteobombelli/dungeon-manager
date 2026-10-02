@@ -119,6 +119,14 @@ describe("POST /assets", () => {
     expect(obj?.httpMetadata?.contentType).toBe("audio/mpeg");
   });
 
+  it("accepts an Opus upload", async () => {
+    const { cookie, user } = await registerAndLogin(uniqueEmail());
+    const res = await upload(cookie, mp3Bytes(), "audio/opus");
+    expect(res.status).toBe(201);
+    const { asset } = (await res.json()) as AssetBody;
+    expect(await r2Key(asset.id)).toBe(`users/${user.id}/${asset.id}.opus`);
+  });
+
   it("rejects an unsupported content type", async () => {
     const { cookie } = await registerAndLogin(uniqueEmail());
     const res = await upload(cookie, "hello", "text/plain");

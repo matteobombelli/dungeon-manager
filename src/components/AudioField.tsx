@@ -5,7 +5,13 @@ import { FileButton } from "./FileButton";
 import { IconButton } from "./IconButton";
 import "./audio-field.css";
 
-const ACCEPT = "audio/mpeg,audio/ogg,audio/wav,audio/mp4,audio/x-m4a,audio/aac,audio/webm,audio/flac";
+const ACCEPT = "audio/mpeg,audio/ogg,audio/opus,.opus,audio/wav,audio/mp4,audio/x-m4a,audio/aac,audio/webm,audio/flac";
+
+// Some OSes (macOS included) have no MIME mapping for .opus, so the browser reports an empty type.
+function withOpusType(file: File): File {
+  if (file.type || !file.name.toLowerCase().endsWith(".opus")) return file;
+  return new File([file], file.name, { type: "audio/opus" });
+}
 
 export interface AudioFieldProps {
   label?: string;
@@ -21,7 +27,7 @@ export function AudioField({ label = "Audio", assetId, onChange }: AudioFieldPro
     setUploading(true);
     setError(null);
     try {
-      const asset = await assets.upload(file);
+      const asset = await assets.upload(withOpusType(file));
       onChange(asset.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");

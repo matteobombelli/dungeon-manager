@@ -15,6 +15,7 @@ const EXTENSIONS: Record<string, string> = {
   "image/gif": "gif",
   "audio/mpeg": "mp3",
   "audio/ogg": "ogg",
+  "audio/opus": "opus",
   "audio/wav": "wav",
   "audio/x-wav": "wav",
   "audio/mp4": "m4a",
