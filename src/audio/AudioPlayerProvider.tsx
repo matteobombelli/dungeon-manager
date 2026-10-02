@@ -1,9 +1,9 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 export interface PlayOptions {
   loop: boolean;
   volume: number;
-  /** Seconds to ramp up from silence; 0 plays at full volume immediately. */
+  /** Seconds to ramp up from silence, and back down when paused or replaced; 0 cuts straight in and out. */
   fadeIn: number;
 }
 
@@ -40,8 +40,10 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  // The volume a fade is heading for, so the slider can move it mid-fade.
+  // The volume a fade in is heading for, so the slider can move it mid-fade.
   const targetVolume = useRef(1);
+  // The loaded track's fade, which it also fades out over when paused or replaced.
+  const loadedFade = useRef(0);
   const fadeFrame = useRef<number | null>(null);
 
   const stopFade = useCallback(() => {
@@ -49,48 +51,70 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     fadeFrame.current = null;
   }, []);
 
-  const fadeIn = useCallback(
-    (el: HTMLAudioElement, seconds: number) => {
+  /**
+   * Ramps from the current volume to `to` ("target" follows the slider), then calls `done`. A newer
+   * ramp cancels this one along with its `done`, so the last button pressed always wins.
+   */
+  const ramp = useCallback(
+    (el: HTMLAudioElement, to: number | "target", seconds: number, done?: () => void) => {
       stopFade();
+      const goal = () => (to === "target" ? targetVolume.current : to);
+      if (seconds <= 0) {
+        el.volume = goal();
+        done?.();
+        return;
+      }
+      const from = el.volume;
       const start = performance.now();
-      el.volume = 0;
       const step = (time: number) => {
         const progress = Math.min(1, (time - start) / (seconds * 1000));
-        el.volume = targetVolume.current * progress;
-        fadeFrame.current = progress < 1 ? requestAnimationFrame(step) : null;
+        el.volume = from + (goal() - from) * progress;
+        if (progress < 1) fadeFrame.current = requestAnimationFrame(step);
+        else {
+          fadeFrame.current = null;
+          done?.();
+        }
       };
       fadeFrame.current = requestAnimationFrame(step);
     },
     [stopFade],
   );
 
+  // Leaving the campaign unmounts the element; a fade still running would keep scheduling frames.
+  useEffect(() => stopFade, [stopFade]);
+
   const play = useCallback((id: string, url: string, opts: PlayOptions) => {
     const el = elementRef.current;
     if (!el) return;
     // The url is part of the key: a node whose track was replaced must not resume the old file.
-    if (loaded.current?.id !== id || loaded.current.url !== url) {
-      loaded.current = { id, url };
-      el.src = url;
-      setCurrentTime(0);
-      setDuration(0);
-    }
-    el.loop = opts.loop;
-    targetVolume.current = opts.volume;
-    if (opts.fadeIn > 0) fadeIn(el, opts.fadeIn);
-    else {
-      stopFade();
-      el.volume = opts.volume;
-    }
+    const replacing = loaded.current?.id !== id || loaded.current.url !== url;
+    const start = () => {
+      if (replacing) {
+        loaded.current = { id, url };
+        el.src = url;
+        setCurrentTime(0);
+        setDuration(0);
+      }
+      el.loop = opts.loop;
+      targetVolume.current = opts.volume;
+      loadedFade.current = opts.fadeIn;
+      // A resume caught mid fade-out ramps back up from where it is rather than dropping to silence.
+      if (el.paused && opts.fadeIn > 0) el.volume = 0;
+      ramp(el, "target", opts.fadeIn);
+      // Autoplay policy or a broken asset rejects; the card must not keep showing "playing".
+      el.play().catch(() => setPlayingId((current) => (current === id ? null : current)));
+    };
     setPlayingId(id);
-    // Autoplay policy or a broken asset rejects; the card must not keep showing "playing".
-    el.play().catch(() => setPlayingId((current) => (current === id ? null : current)));
-  }, [fadeIn, stopFade]);
+    // The track that is sounding fades out over its own fade before the new one starts.
+    if (replacing && !el.paused) ramp(el, 0, loadedFade.current, start);
+    else start();
+  }, [ramp]);
 
   const pause = useCallback(() => {
-    stopFade();
-    elementRef.current?.pause();
+    const el = elementRef.current;
     setPlayingId(null);
-  }, [stopFade]);
+    if (el) ramp(el, 0, loadedFade.current, () => el.pause());
+  }, [ramp]);
 
   const toggle = useCallback(
     (id: string, url: string, opts: PlayOptions) => {

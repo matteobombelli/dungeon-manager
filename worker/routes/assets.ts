@@ -5,7 +5,7 @@ import { json, now, readBounded } from "../http";
 import { HttpError, type Router } from "../router";
 
 const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
-const AUDIO_MAX_BYTES = 30 * 1024 * 1024;
+const AUDIO_MAX_BYTES = 50 * 1024 * 1024;
 const CACHE_CONTROL = "private, max-age=31536000, immutable";
 
 const EXTENSIONS: Record<string, string> = {

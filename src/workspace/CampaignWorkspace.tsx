@@ -12,6 +12,7 @@ import { IconButton } from "../components/IconButton";
 import { transitionMs, usePresence } from "../components/SidePanel";
 import { Spinner } from "../components/Spinner";
 import { SceneEditor } from "../scene-editor/SceneEditor";
+import { SceneSteps } from "./SceneSteps";
 import { useSceneCache } from "./useSceneCache";
 import "./workspace.css";
 
@@ -33,10 +34,12 @@ function originAt(root: HTMLElement | null, at?: { x: number; y: number }): stri
  * One page per campaign: the campaign canvas stays mounted underneath while a scene, chosen by the
  * `sceneId` route param, zooms in as a layer on top, and a group inside it (`groupId`) as a third.
  */
-export function CampaignWorkspace({ campaign, scenes: initialScenes, links, previews: initialPreviews }: CampaignWorkspaceProps) {
+export function CampaignWorkspace({ campaign, scenes: initialScenes, links: initialLinks, previews: initialPreviews }: CampaignWorkspaceProps) {
   const { sceneId, groupId } = useParams();
   const navigate = useNavigate();
   const [scenes, setScenes] = useState(initialScenes);
+  // The campaign canvas owns the links; this copy follows it for the previous/next scene arrows.
+  const [links, setLinks] = useState(initialLinks);
   const [previews, setPreviews] = useState(initialPreviews);
   const [error, setError] = useState<string | null>(null);
   const [campaignTools, setCampaignTools] = useState<HTMLElement | null>(null);
@@ -76,6 +79,8 @@ export function CampaignWorkspace({ campaign, scenes: initialScenes, links, prev
     [navigate, campaign.id]
   );
   const closeScene = useCallback(() => navigate(`/campaigns/${campaign.id}`), [navigate, campaign.id]);
+  // Stepping along a link swaps the scene in place: the layer is already open, so there is no zoom.
+  const stepToScene = useCallback((id: string) => navigate(`/campaigns/${campaign.id}/scenes/${id}`), [navigate, campaign.id]);
 
   const openGroup = useCallback(
     (id: string, at?: { x: number; y: number }) => {
@@ -195,6 +200,9 @@ export function CampaignWorkspace({ campaign, scenes: initialScenes, links, prev
             )}
           </Fragment>
         ))}
+        {sceneId && (
+          <SceneSteps sceneId={sceneId} scenes={scenes} links={links} onStep={stepToScene} onPrefetch={prefetch} />
+        )}
         {error && <span className="graph-canvas__hint graph-canvas__danger">{error}</span>}
         <span ref={setCampaignTools} className="workspace__tools" hidden={!!sceneId} />
         <span ref={setSceneTools} className="workspace__tools" hidden={!sceneId} />
@@ -204,7 +212,7 @@ export function CampaignWorkspace({ campaign, scenes: initialScenes, links, prev
           <CampaignGraph
             campaignId={campaign.id}
             scenes={scenes}
-            links={links}
+            links={initialLinks}
             openSceneId={sceneId ?? null}
             layerMoving={moving}
             toolbarSlot={campaignTools}
@@ -216,6 +224,7 @@ export function CampaignWorkspace({ campaign, scenes: initialScenes, links, prev
             onRecolorScene={recolorScene}
             onSceneCreated={onSceneCreated}
             onSceneDeleted={onSceneDeleted}
+            onLinksChange={setLinks}
             onError={setError}
           />
         </div>

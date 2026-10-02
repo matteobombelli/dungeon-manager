@@ -44,7 +44,7 @@ export function MusicEditor({ nodeId, data, onChange }: NodeEditorProps<MusicDat
         />
       </label>
       <label>
-        Fade in (seconds)
+        Fade in/out (seconds)
         <input
           type="number"
           min={0}

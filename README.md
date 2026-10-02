@@ -112,7 +112,7 @@ through one `<audio>` element per campaign page.
 `POST api/assets` takes the raw file as the body with its `Content-Type`. Images (`image/png`,
 `image/jpeg`, `image/webp`, `image/gif`) are capped at 10 MB, audio (`audio/mpeg`, `audio/ogg`,
 `audio/wav`, `audio/x-wav`, `audio/mp4`, `audio/x-m4a`, `audio/aac`, `audio/webm`, `audio/flac`)
-at 30 MB; over the cap answers 413, an unlisted type 415. `GET api/assets/:id` is owner-scoped,
+at 50 MB; over the cap answers 413, an unlisted type 415. `GET api/assets/:id` is owner-scoped,
 immutable-cached with ETag/304, and supports byte ranges (`Accept-Ranges: bytes`, 206 with
 `Content-Range`, 416 past the end) so `<audio>` can seek.
 

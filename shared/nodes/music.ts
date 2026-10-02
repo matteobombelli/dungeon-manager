@@ -9,7 +9,8 @@ export const MusicSchema = z.object({
   assetId: z.string().nullable(),
   loop: z.boolean(),
   volume: z.number().min(0).max(1),
-  // Seconds to ramp from silence to `volume` each time play is pressed; 0 starts at full volume.
+  // Seconds to fade in from silence each time play is pressed, and to fade out when paused or when
+  // another music node takes over; 0 cuts straight in and out.
   // Defaulted so nodes saved before the field existed still parse.
   fadeIn: z.number().min(0).max(FADE_IN_MAX).default(0),
 });

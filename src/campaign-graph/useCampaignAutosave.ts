@@ -1,21 +1,25 @@
 import type { RefObject } from "react";
-import { API_PREFIX } from "../../shared/api";
+import { API_PREFIX, type SceneLink } from "../../shared/api";
 import { CampaignGraphSchema, type CampaignGraph } from "../../shared/campaign-graph";
 import { campaigns } from "../api/endpoints";
 import { useDocumentAutosave, type SaveStatus } from "../autosave/useDocumentAutosave";
 import type { SceneNode } from "./CampaignGraph";
 import type { RouteEdge } from "./RouteEdge";
 
+export function toSceneLinks(edges: RouteEdge[]): SceneLink[] {
+  return edges.map((e) => ({
+    id: e.id,
+    source: e.source,
+    target: e.target,
+    label: typeof e.label === "string" ? e.label : "",
+    color: e.data?.color ?? null,
+  }));
+}
+
 export function toCampaignGraph(nodes: SceneNode[], edges: RouteEdge[]): CampaignGraph {
   return {
     scenes: nodes.map((n) => ({ id: n.id, x: n.position.x, y: n.position.y, color: n.data.color })),
-    links: edges.map((e) => ({
-      id: e.id,
-      source: e.source,
-      target: e.target,
-      label: typeof e.label === "string" ? e.label : "",
-      color: e.data?.color ?? null,
-    })),
+    links: toSceneLinks(edges),
   };
 }
 

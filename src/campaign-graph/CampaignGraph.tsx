@@ -45,7 +45,7 @@ import { RouteEdgeView, TwoWayLinksContext, pairKey, toRouteEdge, withRouteColor
 import { ScenePanel } from "./ScenePanel";
 import { SceneActionsContext, SceneNodeCard, ScenePreviewsContext } from "./SceneNodeCard";
 import { copyScenes, pasteScenes } from "./scene-clipboard";
-import { toCampaignGraph, useCampaignAutosave } from "./useCampaignAutosave";
+import { toCampaignGraph, toSceneLinks, useCampaignAutosave } from "./useCampaignAutosave";
 import "../graph-canvas.css";
 
 export type SceneNode = Node<{ name: string; color: string | null }, "scene">;
@@ -81,6 +81,8 @@ export interface CampaignGraphProps {
   /** A pasted scene comes with the nodes it was created with. */
   onSceneCreated: (scene: Scene, graph?: Graph) => void;
   onSceneDeleted: (id: string) => void;
+  /** The links as currently drawn, reported whenever one is added, removed, relabelled or rerouted. */
+  onLinksChange: (links: SceneLink[]) => void;
   onError: (message: string) => void;
 }
 
@@ -123,6 +125,7 @@ function CampaignGraphInner({
   onRecolorScene,
   onSceneCreated,
   onSceneDeleted,
+  onLinksChange,
   onError,
 }: CampaignGraphProps) {
   const [initial] = useState(() => ({
@@ -455,6 +458,14 @@ function CampaignGraphInner({
     setEdges((es) => es.map((e) => (e.id === id ? { ...e, label } : e)));
   const updateEdgeColor = (id: string, color: string | null) =>
     setEdges((es) => es.map((e) => (e.id === id ? withRouteColor(e, color) : e)));
+
+  // Keyed by what a link says, so selecting or dragging does not report.
+  const latestEdges = useRef(edges);
+  latestEdges.current = edges;
+  const linkKey = edges
+    .map((e) => [e.id, e.source, e.target, typeof e.label === "string" ? e.label : ""].join("\n"))
+    .join("\0");
+  useEffect(() => onLinksChange(toSceneLinks(latestEdges.current)), [linkKey, onLinksChange]);
 
   // Keyed by the link pairs alone, so selecting or recolouring a link does not re-render every edge.
   const topology = edges.map((e) => pairKey(e.source, e.target)).join("\0");

@@ -107,3 +107,66 @@
 .workspace__fade {
   animation: page-in var(--medium) var(--ease-out) backwards;
 }
+
+/* Previous/next scene arrows; a direction with several linked scenes opens a menu under its arrow. */
+.scene-steps {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.25rem;
+}
+
+.scene-steps__anchor {
+  position: relative;
+  display: inline-flex;
+}
+
+.scene-steps__menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 10;
+  min-width: 12rem;
+  max-width: 20rem;
+  margin: 0.25rem 0 0;
+  padding: 0.25rem;
+  list-style: none;
+  background: var(--bg);
+  border: var(--stroke) solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-hover);
+  transform-origin: top left;
+  animation: menu-in var(--fast) var(--ease-out);
+}
+
+.scene-steps__item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border: 0;
+  border-radius: calc(var(--radius) - 4px);
+  background: transparent;
+  color: var(--fg);
+  text-align: left;
+  transition: background var(--fast) var(--ease-out);
+}
+
+.scene-steps__item:hover,
+.scene-steps__item:focus-visible {
+  background: var(--surface);
+}
+
+.scene-steps__name,
+.scene-steps__label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scene-steps__label {
+  color: var(--muted);
+  font-size: 0.75rem;
+}

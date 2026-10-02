@@ -4,7 +4,7 @@ import { API_PREFIX } from "../../shared/api";
 import { cookieHeader, registerAndLogin, request } from "./helpers";
 
 const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
-const AUDIO_MAX_BYTES = 30 * 1024 * 1024;
+const AUDIO_MAX_BYTES = 50 * 1024 * 1024;
 
 // R2 and D1 state persists across tests within a file, so every registration needs its own email.
 let seq = 0;
@@ -165,7 +165,7 @@ describe("POST /assets", () => {
     expect(await res.json()).toEqual({ error: "Payload too large" });
   });
 
-  it("rejects a declared audio length over 30 MB", async () => {
+  it("rejects a declared audio length over 50 MB", async () => {
     const { cookie } = await registerAndLogin(uniqueEmail());
     const res = await request("/assets", {
       method: "POST",
