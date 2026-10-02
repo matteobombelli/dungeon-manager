@@ -31,7 +31,7 @@ export function MusicCard({ id, data, selected }: NodeProps<Node<MusicData>>) {
           label={playing ? "Pause" : "Play"}
           disabled={!assetId}
           onClick={() =>
-            assetId && player.toggle(id, assets.url(assetId), { loop: data.loop, volume: data.volume })
+            assetId && player.toggle(id, assets.url(assetId), { loop: data.loop, volume: data.volume, fadeIn: data.fadeIn })
           }
         />
       </div>

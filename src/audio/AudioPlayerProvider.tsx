@@ -3,6 +3,8 @@ import { createContext, useCallback, useContext, useMemo, useRef, useState, type
 export interface PlayOptions {
   loop: boolean;
   volume: number;
+  /** Seconds to ramp up from silence; 0 plays at full volume immediately. */
+  fadeIn: number;
 }
 
 export interface AudioPlayer {
@@ -38,6 +40,29 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  // The volume a fade is heading for, so the slider can move it mid-fade.
+  const targetVolume = useRef(1);
+  const fadeFrame = useRef<number | null>(null);
+
+  const stopFade = useCallback(() => {
+    if (fadeFrame.current !== null) cancelAnimationFrame(fadeFrame.current);
+    fadeFrame.current = null;
+  }, []);
+
+  const fadeIn = useCallback(
+    (el: HTMLAudioElement, seconds: number) => {
+      stopFade();
+      const start = performance.now();
+      el.volume = 0;
+      const step = (time: number) => {
+        const progress = Math.min(1, (time - start) / (seconds * 1000));
+        el.volume = targetVolume.current * progress;
+        fadeFrame.current = progress < 1 ? requestAnimationFrame(step) : null;
+      };
+      fadeFrame.current = requestAnimationFrame(step);
+    },
+    [stopFade],
+  );
 
   const play = useCallback((id: string, url: string, opts: PlayOptions) => {
     const el = elementRef.current;
@@ -50,16 +75,22 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       setDuration(0);
     }
     el.loop = opts.loop;
-    el.volume = opts.volume;
+    targetVolume.current = opts.volume;
+    if (opts.fadeIn > 0) fadeIn(el, opts.fadeIn);
+    else {
+      stopFade();
+      el.volume = opts.volume;
+    }
     setPlayingId(id);
     // Autoplay policy or a broken asset rejects; the card must not keep showing "playing".
     el.play().catch(() => setPlayingId((current) => (current === id ? null : current)));
-  }, []);
+  }, [fadeIn, stopFade]);
 
   const pause = useCallback(() => {
+    stopFade();
     elementRef.current?.pause();
     setPlayingId(null);
-  }, []);
+  }, [stopFade]);
 
   const toggle = useCallback(
     (id: string, url: string, opts: PlayOptions) => {
@@ -70,7 +101,9 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   );
 
   const setVolume = useCallback((volume: number) => {
-    if (elementRef.current) elementRef.current.volume = volume;
+    targetVolume.current = volume;
+    // Mid-fade the ramp picks the new target up on its next frame.
+    if (elementRef.current && fadeFrame.current === null) elementRef.current.volume = volume;
   }, []);
 
   const setLoop = useCallback((loop: boolean) => {

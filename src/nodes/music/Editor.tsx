@@ -1,5 +1,5 @@
 import { Pause, Play } from "lucide-react";
-import type { MusicData } from "../../../shared/nodes/music";
+import { FADE_IN_MAX, type MusicData } from "../../../shared/nodes/music";
 import { assets } from "../../api/endpoints";
 import { useAudioPlayer } from "../../audio/AudioPlayerProvider";
 import { AudioField } from "../../components/AudioField";
@@ -38,9 +38,20 @@ export function MusicEditor({ nodeId, data, onChange }: NodeEditorProps<MusicDat
           type="range"
           min={0}
           max={1}
-          step={0.05}
+          step={0.01}
           value={data.volume}
           onChange={(e) => setVolume(Number(e.target.value))}
+        />
+      </label>
+      <label>
+        Fade in (seconds)
+        <input
+          type="number"
+          min={0}
+          max={FADE_IN_MAX}
+          step={0.5}
+          value={data.fadeIn}
+          onChange={(e) => set("fadeIn", Math.min(FADE_IN_MAX, Math.max(0, Number(e.target.value) || 0)))}
         />
       </label>
       <div className="editor-actions">
@@ -49,7 +60,7 @@ export function MusicEditor({ nodeId, data, onChange }: NodeEditorProps<MusicDat
           label={playing ? "Pause" : "Play"}
           disabled={!data.assetId}
           onClick={() =>
-            data.assetId && player.toggle(nodeId, assets.url(data.assetId), { loop: data.loop, volume: data.volume })
+            data.assetId && player.toggle(nodeId, assets.url(data.assetId), { loop: data.loop, volume: data.volume, fadeIn: data.fadeIn })
           }
         />
       </div>

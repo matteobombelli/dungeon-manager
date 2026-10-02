@@ -1,17 +1,22 @@
 import { z } from "zod";
 import type { NodeTypeDef } from "./registry";
 
+export const FADE_IN_MAX = 60;
+
 export const MusicSchema = z.object({
   title: z.string(),
   // Uploaded audio asset (POST /assets with an audio/* type); null until a file is attached.
   assetId: z.string().nullable(),
   loop: z.boolean(),
   volume: z.number().min(0).max(1),
+  // Seconds to ramp from silence to `volume` each time play is pressed; 0 starts at full volume.
+  // Defaulted so nodes saved before the field existed still parse.
+  fadeIn: z.number().min(0).max(FADE_IN_MAX).default(0),
 });
 export type MusicData = z.infer<typeof MusicSchema>;
 
 export function defaultData(): MusicData {
-  return { title: "", assetId: null, loop: false, volume: 0.8 };
+  return { title: "", assetId: null, loop: false, volume: 0.8, fadeIn: 0 };
 }
 
 export function titleOf(data: MusicData): string {
