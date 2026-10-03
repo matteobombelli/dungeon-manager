@@ -53,15 +53,15 @@ describe("PUT /campaigns/:id/graph", () => {
     const { campaign, a, b, c } = await withScenes("Round trip");
     const graph: CampaignGraph = {
       scenes: [
-        { id: a.id, x: 12.5, y: -40, color: "#cfe3f7" },
-        { id: b.id, x: 300, y: 80.25, color: null },
-        { id: c.id, x: 0, y: 0, color: null },
+        { id: a.id, x: 12.5, y: -40 },
+        { id: b.id, x: 300, y: 80.25 },
+        { id: c.id, x: 0, y: 0 },
       ],
       // Links are directed, so the two between A and B are both kept.
       links: [
-        { id: "l1", source: a.id, target: b.id, label: "leads to", color: "#f6c9c9" },
-        { id: "l2", source: b.id, target: a.id, label: "back to", color: null },
-        { id: "l3", source: b.id, target: c.id, label: "", color: null },
+        { id: "l1", source: a.id, target: b.id, label: "leads to" },
+        { id: "l2", source: b.id, target: a.id, label: "back to" },
+        { id: "l3", source: b.id, target: c.id, label: "" },
       ],
     };
 
@@ -74,10 +74,10 @@ describe("PUT /campaigns/:id/graph", () => {
     expect(after.campaign.updatedAt).toBe(updatedAt);
     expect(after.links).toEqual(expect.arrayContaining(graph.links));
     expect(after.links).toHaveLength(3);
-    const positions = Object.fromEntries(after.scenes.map((s) => [s.id, { x: s.x, y: s.y, color: s.color }]));
-    expect(positions[a.id]).toEqual({ x: 12.5, y: -40, color: "#cfe3f7" });
-    expect(positions[b.id]).toEqual({ x: 300, y: 80.25, color: null });
-    expect(positions[c.id]).toEqual({ x: 0, y: 0, color: null });
+    const positions = Object.fromEntries(after.scenes.map((s) => [s.id, { x: s.x, y: s.y }]));
+    expect(positions[a.id]).toEqual({ x: 12.5, y: -40 });
+    expect(positions[b.id]).toEqual({ x: 300, y: 80.25 });
+    expect(positions[c.id]).toEqual({ x: 0, y: 0 });
   });
 
   it("does not bump the scene timestamps", async () => {
@@ -107,7 +107,7 @@ describe("PUT /campaigns/:id/graph", () => {
       (await putGraph(campaign.id, { scenes, links: [{ id: "l3", source: a.id, target: c.id, label: "only" }] })).status,
     ).toBe(200);
     expect((await getCampaign(campaign.id)).links).toEqual([
-      { id: "l3", source: a.id, target: c.id, label: "only", color: null },
+      { id: "l3", source: a.id, target: c.id, label: "only" },
     ]);
 
     expect((await putGraph(campaign.id, { scenes, links: [] })).status).toBe(200);
@@ -263,7 +263,7 @@ describe("scene deletion", () => {
 
     const after = await getCampaign(campaign.id);
     expect(after.scenes.map((s) => s.id).sort()).toEqual([a.id, c.id].sort());
-    expect(after.links).toEqual([{ id: "l3", source: a.id, target: c.id, label: "", color: null }]);
+    expect(after.links).toEqual([{ id: "l3", source: a.id, target: c.id, label: "" }]);
   });
 });
 

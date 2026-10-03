@@ -49,8 +49,6 @@ export interface Scene {
   // React Flow top-left position on the campaign canvas.
   x: number;
   y: number;
-  // Hex fill or null for the default scene pastel.
-  color: string | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -60,8 +58,6 @@ export interface SceneLink {
   source: string;
   target: string;
   label: string;
-  // Hex stroke or null for the default route pastel.
-  color: string | null;
 }
 
 export interface Asset {

@@ -4,7 +4,7 @@ import { MIN_BOX, previewBox } from "../../src/nodes/preview-box";
 import { SHAPE_SIZES } from "../../src/nodes/shapes";
 
 function outline(id: string, type: NodeOutline["type"], x: number, y: number): NodeOutline {
-  return { id, type, x, y, color: null };
+  return { id, type, x, y };
 }
 
 describe("previewBox", () => {

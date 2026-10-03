@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { NodeColorSchema } from "./color";
 import { NODE_TYPE_IDS } from "./nodes/ids";
 import { validateNodeData } from "./nodes/validate";
 
@@ -10,13 +9,12 @@ export const GraphNodeSchema = z.object({
   type: z.enum(NODE_TYPE_IDS),
   x: z.number(),
   y: z.number(),
-  color: NodeColorSchema.default(null),
   data: z.unknown(),
 });
 export type GraphNode = z.infer<typeof GraphNodeSchema>;
 
 /** What a card miniature needs of a node; scene-level nodes and group children both satisfy it. */
-export type NodeOutline = Pick<GraphNode, "id" | "type" | "x" | "y" | "color">;
+export type NodeOutline = Pick<GraphNode, "id" | "type" | "x" | "y">;
 
 // A scene is a set of placed nodes; groups carry their own nodes inside their data.
 export const GraphSchema = z

@@ -3,7 +3,7 @@ import { GROUP_LIMITS, GroupSchema, defaultData, type GroupChild } from "../../s
 import { NODE_TYPES } from "../../shared/nodes/registry";
 
 function child(id: string, type: GroupChild["type"] = "character"): GroupChild {
-  return { id, type, x: 0, y: 0, color: null, data: NODE_TYPES[type].defaultData() };
+  return { id, type, x: 0, y: 0, data: NODE_TYPES[type].defaultData() };
 }
 
 describe("GroupSchema", () => {
@@ -28,7 +28,7 @@ describe("GroupSchema", () => {
   });
 
   it("rejects a nested group", () => {
-    const nested = { id: "a", type: "group", x: 0, y: 0, color: null, data: defaultData() };
+    const nested = { id: "a", type: "group", x: 0, y: 0, data: defaultData() };
     expect(GroupSchema.safeParse({ name: "", nodes: [nested] }).success).toBe(false);
   });
 
@@ -44,10 +44,9 @@ describe("GroupSchema", () => {
     expect(GroupSchema.safeParse({ name: "", nodes: [...nodes, child("extra", "event")] }).success).toBe(false);
   });
 
-  it("defaults an omitted child colour to null", () => {
-    const { color: _color, ...noColor } = child("a");
-    const result = GroupSchema.safeParse({ name: "", nodes: [noColor] });
+  it("strips a legacy child colour", () => {
+    const result = GroupSchema.safeParse({ name: "", nodes: [{ ...child("a") }] });
     expect(result.success).toBe(true);
-    expect(result.data?.nodes[0].color).toBeNull();
+    expect(result.data?.nodes[0]).not.toHaveProperty("color");
   });
 });

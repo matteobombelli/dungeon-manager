@@ -3,20 +3,17 @@ import { API_PREFIX } from "../../shared/api";
 import { GraphSchema, type Graph, type GraphNode } from "../../shared/graph";
 import { scenes } from "../api/endpoints";
 import { useDocumentAutosave, type SaveStatus } from "../autosave/useDocumentAutosave";
-import { withColor } from "../nodes/color";
 import type { AppNode } from "../nodes/registry";
 
 export type { SaveStatus };
 
 export function fromGraph(nodes: readonly GraphNode[]): AppNode[] {
-  return nodes.map((n) =>
-    withColor({ id: n.id, type: n.type, position: { x: n.x, y: n.y }, data: n.data as Record<string, unknown> }, n.color)
-  );
+  return nodes.map((n) => ({ id: n.id, type: n.type, position: { x: n.x, y: n.y }, data: n.data as Record<string, unknown> }));
 }
 
 export function toGraph(nodes: AppNode[]): Graph {
   return {
-    nodes: nodes.map((n) => ({ id: n.id, type: n.type, x: n.position.x, y: n.position.y, color: n.color, data: n.data })),
+    nodes: nodes.map((n) => ({ id: n.id, type: n.type, x: n.position.x, y: n.position.y, data: n.data })),
   };
 }
 

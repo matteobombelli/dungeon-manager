@@ -36,19 +36,18 @@ import { HistoryButtons } from "../components/HistoryButtons";
 import { MultiSelectPanel } from "../components/MultiSelectPanel";
 import { SidePanel } from "../components/SidePanel";
 import { useHistory } from "../history/useHistory";
-import { withColor } from "../nodes/color";
 import { motionDuration } from "../physics/motion";
 import { useForceLayout } from "../physics/useForceLayout";
 import { SaveIndicator } from "../scene-editor/SaveIndicator";
 import { LinkPanel } from "./LinkPanel";
-import { RouteEdgeView, TwoWayLinksContext, pairKey, toRouteEdge, withRouteColor, type RouteEdge } from "./RouteEdge";
+import { RouteEdgeView, TwoWayLinksContext, pairKey, toRouteEdge, type RouteEdge } from "./RouteEdge";
 import { ScenePanel } from "./ScenePanel";
 import { SceneActionsContext, SceneNodeCard, ScenePreviewsContext } from "./SceneNodeCard";
 import { copyScenes, pasteScenes } from "./scene-clipboard";
 import { toCampaignGraph, toSceneLinks, useCampaignAutosave } from "./useCampaignAutosave";
 import "../graph-canvas.css";
 
-export type SceneNode = Node<{ name: string; color: string | null }, "scene">;
+export type SceneNode = Node<{ name: string }, "scene">;
 
 const nodeTypes: NodeTypes = { scene: SceneNodeCard };
 const edgeTypes: EdgeTypes = { route: RouteEdgeView };
@@ -61,7 +60,7 @@ const PASTE_CASCADE = 24;
 
 export interface CampaignGraphProps {
   campaignId: string;
-  /** Initial layout; later changes only sync names and colours into the cards. */
+  /** Initial layout; later changes only sync names into the cards. */
   scenes: Scene[];
   links: SceneLink[];
   /** Scene shown in the layer above; while set the canvas is read-only and zoomed to that node. */
@@ -77,7 +76,6 @@ export interface CampaignGraphProps {
   /** A scene's nodes, for copying it. */
   onLoadSceneGraph: (id: string) => Promise<Graph>;
   onRenameScene: (id: string, name: string) => void;
-  onRecolorScene: (id: string, color: string | null) => void;
   /** A pasted scene comes with the nodes it was created with. */
   onSceneCreated: (scene: Scene, graph?: Graph) => void;
   onSceneDeleted: (id: string) => void;
@@ -87,15 +85,7 @@ export interface CampaignGraphProps {
 }
 
 function toNode(s: Scene): SceneNode {
-  return withColor(
-    {
-      id: s.id,
-      type: "scene",
-      position: { x: s.x, y: s.y },
-      data: { name: s.name, color: s.color },
-    },
-    s.color
-  );
+  return { id: s.id, type: "scene", position: { x: s.x, y: s.y }, data: { name: s.name } };
 }
 
 type Selection = { nodes: string[]; edge: string | null };
@@ -122,7 +112,6 @@ function CampaignGraphInner({
   onPrefetchScene,
   onLoadSceneGraph,
   onRenameScene,
-  onRecolorScene,
   onSceneCreated,
   onSceneDeleted,
   onLinksChange,
@@ -182,7 +171,7 @@ function CampaignGraphInner({
   const { status, error } = useCampaignAutosave(campaignId, nodes, edges, [dragging, layout.isSimulating]);
 
   // Scenes are created and deleted on the server as they happen, so a step only covers the scenes
-  // still present; colours go through the workspace, which owns them, as well as onto the cards.
+  // still present.
   const history = useHistory<CampaignGraphDoc>({
     inputs: [nodes, edges],
     snapshot: () => toCampaignGraph(nodes, edges),
@@ -190,14 +179,10 @@ function CampaignGraphInner({
     restore: (doc) => {
       const byId = new Map(doc.scenes.map((s) => [s.id, s]));
       const current = getNodes();
-      for (const n of current) {
-        const s = byId.get(n.id);
-        if (s && s.color !== n.data.color) onRecolorScene(n.id, s.color);
-      }
       setNodes((ns) =>
         ns.map((n) => {
           const s = byId.get(n.id);
-          return s ? withColor({ ...n, position: { x: s.x, y: s.y }, data: { ...n.data, color: s.color } }, s.color) : n;
+          return s ? { ...n, position: { x: s.x, y: s.y } } : n;
         })
       );
       const present = new Set(current.map((n) => n.id));
@@ -226,16 +211,16 @@ function CampaignGraphInner({
     }
   }, [openSceneId, fitView, getViewport, setViewport, setNodes, setEdges]);
 
-  // Names and colours are owned by the workspace (the scene layer can change both); positions stay here.
+  // Names are owned by the workspace (the scene layer can rename); positions stay here.
   useEffect(() => {
     setNodes((ns) => {
       const byId = new Map(scenes.map((s) => [s.id, s]));
       let changed = false;
       const out = ns.map((n) => {
         const s = byId.get(n.id);
-        if (!s || (s.name === n.data.name && s.color === n.data.color)) return n;
+        if (!s || s.name === n.data.name) return n;
         changed = true;
-        return withColor({ ...n, data: { name: s.name, color: s.color } }, s.color);
+        return { ...n, data: { name: s.name } };
       });
       return changed ? out : ns;
     });
@@ -262,7 +247,7 @@ function CampaignGraphInner({
       setEdges((eds) =>
         eds.some((e) => e.source === conn.source && e.target === conn.target)
           ? eds
-          : addEdge(withRouteColor({ ...conn, id: newId(), type: "route", label: "" }, null), eds)
+          : addEdge(toRouteEdge({ ...conn, id: newId(), label: "" }), eds)
       );
     },
     [setEdges]
@@ -376,7 +361,6 @@ function CampaignGraphInner({
         selected.map((n, i) => ({
           id: n.id,
           name: n.data.name,
-          color: n.data.color,
           x: n.position.x,
           y: n.position.y,
           graph: graphs[i],
@@ -385,7 +369,6 @@ function CampaignGraphInner({
           source: e.source,
           target: e.target,
           label: typeof e.label === "string" ? e.label : "",
-          color: e.data?.color ?? null,
         }))
       );
     } catch (err) {
@@ -411,7 +394,7 @@ function CampaignGraphInner({
           x: spec.x,
           y: spec.y,
         });
-        created.push({ ...scene, color: spec.color });
+        created.push(scene);
         if (spec.graph.nodes.length > 0) await scenesApi.putGraph(scene.id, spec.graph);
       }
     } catch (err) {
@@ -432,7 +415,6 @@ function CampaignGraphInner({
             source: created[l.from].id,
             target: created[l.to].id,
             label: l.label,
-            color: l.color,
           })
         ),
     ]);
@@ -456,8 +438,6 @@ function CampaignGraphInner({
 
   const updateEdgeLabel = (id: string, label: string) =>
     setEdges((es) => es.map((e) => (e.id === id ? { ...e, label } : e)));
-  const updateEdgeColor = (id: string, color: string | null) =>
-    setEdges((es) => es.map((e) => (e.id === id ? withRouteColor(e, color) : e)));
 
   // Keyed by what a link says, so selecting or dragging does not report.
   const latestEdges = useRef(edges);
@@ -467,7 +447,7 @@ function CampaignGraphInner({
     .join("\0");
   useEffect(() => onLinksChange(toSceneLinks(latestEdges.current)), [linkKey, onLinksChange]);
 
-  // Keyed by the link pairs alone, so selecting or recolouring a link does not re-render every edge.
+  // Keyed by the link pairs alone, so selecting a link does not re-render every edge.
   const topology = edges.map((e) => pairKey(e.source, e.target)).join("\0");
   const twoWay = useMemo(() => {
     const pairs = new Set(topology.split("\0"));
@@ -479,9 +459,6 @@ function CampaignGraphInner({
   const selectedNode = selectedNodes.length === 1 ? selectedNodes[0] : undefined;
   const selectedEdge =
     selectedNodes.length === 0 && selection.edge ? edges.find((e) => e.id === selection.edge) : undefined;
-  const sharedColor = selectedNodes.every((n) => n.data.color === selectedNodes[0]?.data.color)
-    ? (selectedNodes[0]?.data.color ?? null)
-    : null;
 
   return (
     <div className="graph-canvas">
@@ -555,8 +532,6 @@ function CampaignGraphInner({
             <MultiSelectPanel
               key="multi"
               count={selectedNodes.length}
-              color={sharedColor}
-              onChangeColor={(color) => selectedNodes.forEach((n) => onRecolorScene(n.id, color))}
               onDelete={() => void deleteScenes(selectedNodes.map((n) => n.id))}
             />
           ) : selectedNode ? (
@@ -565,7 +540,6 @@ function CampaignGraphInner({
               node={selectedNode}
               autoFocus={focusId === selectedNode.id}
               onRename={(name) => onRenameScene(selectedNode.id, name)}
-              onChangeColor={(color) => onRecolorScene(selectedNode.id, color)}
               onOpen={() => openScene(selectedNode.id)}
               onDelete={() => void deleteScenes([selectedNode.id])}
             />
@@ -574,7 +548,6 @@ function CampaignGraphInner({
               key={selectedEdge.id}
               edge={selectedEdge}
               onChangeLabel={(label) => updateEdgeLabel(selectedEdge.id, label)}
-              onChangeColor={(color) => updateEdgeColor(selectedEdge.id, color)}
               onDelete={() => void deleteElements({ edges: [{ id: selectedEdge.id }] })}
             />
           ) : null}

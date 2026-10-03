@@ -23,7 +23,6 @@ import { NODE_TYPES, type NodeTypeId } from "../../shared/nodes/registry";
 import { MultiSelectPanel } from "../components/MultiSelectPanel";
 import { SidePanel } from "../components/SidePanel";
 import { copyNodes, pasteNodes } from "../nodes/clipboard";
-import { withColor } from "../nodes/color";
 import { GroupActionsContext } from "../nodes/group/actions";
 import { nodeTypes, type AppNode } from "../nodes/registry";
 import { NODE_SHAPES } from "../nodes/shapes";
@@ -262,7 +261,7 @@ function NodeCanvasInner({
         const position = { x: at.x + offset, y: at.y + offset };
         return [
           ...ns.map((n) => (n.selected ? { ...n, selected: false } : n)),
-          withColor({ id: nodeId, type, position, data, selected: true }, null),
+          { id: nodeId, type, position, data, selected: true },
         ];
       });
       layout.release([nodeId]);
@@ -318,18 +317,9 @@ function NodeCanvasInner({
     [setNodes, markCold]
   );
 
-  const updateColor = useCallback(
-    (ids: string[], color: string | null) => {
-      setNodes((ns) => ns.map((n) => (ids.includes(n.id) ? withColor(n, color) : n)));
-      markCold();
-    },
-    [setNodes, markCold]
-  );
-
   const nodeById = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
   const selected = selection.flatMap((sel) => nodeById.get(sel) ?? []);
   const single = selected.length === 1 ? selected[0] : undefined;
-  const sharedColor = selected.every((n) => n.color === selected[0]?.color) ? selected[0]?.color ?? null : null;
 
   return (
     <GroupActionsContext.Provider value={groupActions}>
@@ -371,8 +361,6 @@ function NodeCanvasInner({
               <MultiSelectPanel
                 key="multi"
                 count={selected.length}
-                color={sharedColor}
-                onChangeColor={(color) => updateColor(selected.map((n) => n.id), color)}
                 onDelete={() => void deleteElements({ nodes: selected.map((n) => ({ id: n.id })) })}
               />
             ) : single ? (
@@ -381,7 +369,6 @@ function NodeCanvasInner({
                 node={single}
                 openRequest={openRequest?.id === single.id ? openRequest.nonce : 0}
                 onChange={(data) => updateNodeData(single.id, data)}
-                onChangeColor={(color) => updateColor([single.id], color)}
                 onDelete={() => void deleteElements({ nodes: [{ id: single.id }] })}
               />
             ) : null}

@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { NodeColorSchema } from "../color";
 import { GROUP_CHILD_TYPE_IDS } from "./ids";
 import type { NodeTypeDef } from "./registry";
 import { validateNodeData } from "./validate";
@@ -12,7 +11,6 @@ export const GroupChildSchema = z.object({
   type: z.enum(GROUP_CHILD_TYPE_IDS),
   x: z.number(),
   y: z.number(),
-  color: NodeColorSchema.default(null),
   data: z.unknown(),
 });
 export type GroupChild = z.infer<typeof GroupChildSchema>;

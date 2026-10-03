@@ -1,4 +1,3 @@
-import type { CSSProperties } from "react";
 import type { NodeOutline } from "../../shared/graph";
 import { previewBox } from "./preview-box";
 import { NODE_SHAPES, SHAPE_POLYGONS, SHAPE_SIZES } from "./shapes";
@@ -6,7 +5,7 @@ import { NODE_SHAPES, SHAPE_POLYGONS, SHAPE_SIZES } from "./shapes";
 const RADIUS = 12; // --radius
 const FRAME_RADIUS = 16;
 
-/** Miniature of a scene's or group's nodes: each drawn as its shape, in its colour, where it sits. */
+/** Miniature of a scene's or group's nodes: each drawn as its shape, in its type colour, where it sits. */
 export function NodePreview({ nodes }: { nodes: readonly NodeOutline[] }) {
   if (nodes.length === 0) return <div className="node-preview node-preview--empty">Empty</div>;
   const box = previewBox(nodes);
@@ -28,10 +27,9 @@ export function NodePreview({ nodes }: { nodes: readonly NodeOutline[] }) {
 function Mark({ node }: { node: NodeOutline }) {
   const shape = NODE_SHAPES[node.type];
   const { w, h } = SHAPE_SIZES[shape];
-  // The type class supplies --tone-default, the inline variable the node's own colour, as on a card.
+  // The type class supplies --tone-default, as on a card.
   const props = {
     className: `node-preview__node node-card--${node.type}`,
-    style: node.color ? ({ "--tone-override": node.color } as CSSProperties) : undefined,
     vectorEffect: "non-scaling-stroke" as const,
   };
   const polygon = SHAPE_POLYGONS[shape];

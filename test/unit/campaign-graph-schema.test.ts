@@ -5,8 +5,8 @@ import {
   type ScenePosition,
 } from "../../shared/campaign-graph";
 
-function scene(id: string, color: unknown = null): unknown {
-  return { id, x: 0, y: 0, color };
+function scene(id: string): unknown {
+  return { id, x: 0, y: 0 };
 }
 
 function graph(scenes: unknown[], links: unknown[] = []): unknown {
@@ -21,29 +21,13 @@ describe("CampaignGraphSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("accepts a six-digit hex colour", () => {
-    const result = CampaignGraphSchema.safeParse(graph([scene("a", "#aabbcc")]));
+  it("strips a legacy colour from scenes and links", () => {
+    const result = CampaignGraphSchema.safeParse(
+      graph([{ id: "a", x: 1, y: 2, color: "#aabbcc" }, scene("b")], [{ id: "l1", source: "a", target: "b", label: "", color: "red" }]),
+    );
     expect(result.success).toBe(true);
-    expect(result.data?.scenes[0].color).toBe("#aabbcc");
-  });
-
-  it("rejects a colour that is not six-digit hex", () => {
-    expect(CampaignGraphSchema.safeParse(graph([scene("a", "red")])).success).toBe(false);
-    expect(CampaignGraphSchema.safeParse(graph([scene("a", "#abc")])).success).toBe(false);
-  });
-
-  it("defaults an omitted link colour to null and rejects a bad one", () => {
-    const ok = CampaignGraphSchema.safeParse(graph([scene("a"), scene("b")], [{ id: "l1", source: "a", target: "b", label: "" }]));
-    expect(ok.success).toBe(true);
-    expect(ok.data?.links[0].color).toBeNull();
-    const bad = graph([scene("a"), scene("b")], [{ id: "l1", source: "a", target: "b", label: "", color: "red" }]);
-    expect(CampaignGraphSchema.safeParse(bad).success).toBe(false);
-  });
-
-  it("defaults an omitted colour to null", () => {
-    const result = CampaignGraphSchema.safeParse(graph([{ id: "a", x: 1, y: 2 }]));
-    expect(result.success).toBe(true);
-    expect(result.data?.scenes[0]).toEqual({ id: "a", x: 1, y: 2, color: null } satisfies ScenePosition);
+    expect(result.data?.scenes[0]).toEqual({ id: "a", x: 1, y: 2 } satisfies ScenePosition);
+    expect(result.data?.links[0]).toEqual({ id: "l1", source: "a", target: "b", label: "" });
   });
 
   it("accepts the scene limit but rejects one more", () => {

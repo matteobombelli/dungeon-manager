@@ -12,13 +12,12 @@ export function toSceneLinks(edges: RouteEdge[]): SceneLink[] {
     source: e.source,
     target: e.target,
     label: typeof e.label === "string" ? e.label : "",
-    color: e.data?.color ?? null,
   }));
 }
 
 export function toCampaignGraph(nodes: SceneNode[], edges: RouteEdge[]): CampaignGraph {
   return {
-    scenes: nodes.map((n) => ({ id: n.id, x: n.position.x, y: n.position.y, color: n.data.color })),
+    scenes: nodes.map((n) => ({ id: n.id, x: n.position.x, y: n.position.y })),
     links: toSceneLinks(edges),
   };
 }

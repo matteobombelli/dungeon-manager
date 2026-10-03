@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { ExternalLink, Trash2 } from "lucide-react";
-import { ColorField } from "../components/ColorField";
 import { IconButton } from "../components/IconButton";
 import type { SceneNode } from "./CampaignGraph";
 
@@ -8,12 +7,11 @@ export interface ScenePanelProps {
   node: SceneNode;
   autoFocus?: boolean;
   onRename: (name: string) => void;
-  onChangeColor: (color: string | null) => void;
   onOpen: () => void;
   onDelete: () => void;
 }
 
-export function ScenePanel({ node, autoFocus, onRename, onChangeColor, onOpen, onDelete }: ScenePanelProps) {
+export function ScenePanel({ node, autoFocus, onRename, onOpen, onDelete }: ScenePanelProps) {
   const [name, setName] = useState(node.data.name);
   useEffect(() => setName(node.data.name), [node.data.name]);
 
@@ -45,7 +43,6 @@ export function ScenePanel({ node, autoFocus, onRename, onChangeColor, onOpen, o
         />
         <IconButton icon={Trash2} label="Delete scene" danger onClick={onDelete} />
       </header>
-      <ColorField label="Colour" value={node.data.color} onChange={onChangeColor} />
       <button type="button" className="button--primary" onClick={onOpen}>
         <ExternalLink size={16} strokeWidth={1.75} aria-hidden="true" /> Open scene
       </button>

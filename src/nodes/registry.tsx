@@ -21,8 +21,7 @@ export const NODE_TYPES_UI: { [K in NodeTypeId]: NodeTypeUI<Extract<NodeDataOf<K
   group: groupNodeUI,
 };
 
-// `color` is persisted per node (GraphNodeSchema); withColor() mirrors it onto `style` for the card.
-export type AppNode = Node<Record<string, unknown>, NodeTypeId> & { color: string | null };
+export type AppNode = Node<Record<string, unknown>, NodeTypeId>;
 
 // Module-level so React Flow does not see a new object on each render.
 export const nodeTypes: NodeTypes = {

@@ -486,12 +486,12 @@ input[type="color"]::-webkit-color-swatch {
   color: var(--fg);
 }
 
-/* Pastel tones: a card gets its fill from its own colour (--tone-override, set by withColor on
-   React Flow's wrapper) or its type's default, plus a darker edge of the same hue. */
+/* Pastel tones: a card gets its fill from its type (light and dark pairs in :root), plus a darker
+   edge of the same hue. */
 
 .card,
 .node-card {
-  --tone: var(--tone-override, var(--tone-default, var(--surface)));
+  --tone: var(--tone-default, var(--surface));
   --tone-edge: color-mix(in oklab, var(--tone), var(--fg) 25%);
   background: var(--tone);
   border: var(--stroke) solid var(--tone-edge);

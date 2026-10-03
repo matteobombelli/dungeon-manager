@@ -1,18 +1,20 @@
-import { createContext, memo, useCallback, useContext, type CSSProperties } from "react";
+import { createContext, memo, useCallback, useContext } from "react";
 import { BaseEdge, MarkerType, useInternalNode, useStore, type Edge, type EdgeProps, type InternalNode, type ReactFlowState } from "@xyflow/react";
 import type { SceneLink } from "../../shared/api";
 import { midpoint, roundedPath, routeAround, type Point, type Rect } from "./route-path";
 
-export type RouteEdge = Edge<{ color: string | null }, "route">;
+export type RouteEdge = Edge<Record<string, never>, "route">;
 
-/** Sets a link's persisted colour on the edge and on its arrowhead; null falls back to the route pastel. */
-export function withRouteColor(edge: Omit<RouteEdge, "data" | "markerEnd">, color: string | null): RouteEdge {
-  // No colour key at all for the default: React Flow spreads the marker over its default colour, so undefined would win.
-  return { ...edge, data: { color }, markerEnd: { type: MarkerType.ArrowClosed, ...(color ? { color } : {}) } };
-}
-
+/** The arrowhead takes the canvas's default marker colour, the route pastel. */
 export function toRouteEdge(link: SceneLink): RouteEdge {
-  return withRouteColor({ id: link.id, type: "route", source: link.source, target: link.target, label: link.label }, link.color);
+  return {
+    id: link.id,
+    type: "route",
+    source: link.source,
+    target: link.target,
+    label: link.label,
+    markerEnd: { type: MarkerType.ArrowClosed },
+  };
 }
 
 export const pairKey = (source: string, target: string) => `${source}\n${target}`;
@@ -55,7 +57,7 @@ const sameRects = (a: Rect[], b: Rect[]) =>
   a.length === b.length && a.every((r, i) => r.left === b[i].left && r.top === b[i].top && r.right === b[i].right && r.bottom === b[i].bottom);
 
 /** A straight arrow aimed at the target card's centre, clipped to both cards' borders and bent around any card in between. */
-export const RouteEdgeView = memo(function RouteEdgeView({ source, target, label, markerEnd, data }: EdgeProps<RouteEdge>) {
+export const RouteEdgeView = memo(function RouteEdgeView({ source, target, label, markerEnd }: EdgeProps<RouteEdge>) {
   const from = useInternalNode(source);
   const to = useInternalNode(target);
   const twoWay = useContext(TwoWayLinksContext).has(pairKey(source, target));
@@ -106,8 +108,6 @@ export const RouteEdgeView = memo(function RouteEdgeView({ source, target, label
     }
   }
   const labelAt = midpoint(points);
-  // The stroke is read through --route so the selected and animated rules in graph-canvas.css still apply.
-  const tint = { "--route": data?.color ?? undefined } as CSSProperties;
   return (
     <BaseEdge
       path={roundedPath(points, BEND_RADIUS)}
@@ -116,8 +116,6 @@ export const RouteEdgeView = memo(function RouteEdgeView({ source, target, label
       labelY={labelAt.y}
       markerEnd={markerEnd}
       interactionWidth={HIT_WIDTH}
-      style={tint}
-      labelBgStyle={tint}
     />
   );
 });

@@ -271,9 +271,9 @@
   color: var(--muted);
 }
 
-/* The type class carries --tone-default, the inline --tone-override a custom colour, like a card. */
+/* The type class carries --tone-default, like a card. */
 .node-preview__node {
-  --tone: var(--tone-override, var(--tone-default, var(--surface)));
+  --tone: var(--tone-default, var(--surface));
   fill: var(--tone);
   stroke: color-mix(in oklab, var(--tone), var(--fg) 25%);
   stroke-width: 1px;

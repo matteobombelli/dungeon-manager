@@ -18,7 +18,6 @@ export interface SceneRow {
   name: string;
   x: number;
   y: number;
-  color: string | null;
   created_at: number;
   updated_at: number;
 }
@@ -56,7 +55,7 @@ export async function getSceneOwned(db: D1Database, id: string, userId: string):
   return found(
     await db
       .prepare(
-        "SELECT s.id, s.campaign_id, s.user_id, s.name, s.x, s.y, s.color, s.created_at, s.updated_at FROM scenes s JOIN campaigns c ON c.id = s.campaign_id WHERE s.id = ? AND s.user_id = ? AND c.deleted_at IS NULL",
+        "SELECT s.id, s.campaign_id, s.user_id, s.name, s.x, s.y, s.created_at, s.updated_at FROM scenes s JOIN campaigns c ON c.id = s.campaign_id WHERE s.id = ? AND s.user_id = ? AND c.deleted_at IS NULL",
       )
       .bind(id, userId)
       .first<SceneRow>(),
@@ -81,7 +80,6 @@ export function toScene(row: SceneRow): Scene {
     name: row.name,
     x: row.x,
     y: row.y,
-    color: row.color,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

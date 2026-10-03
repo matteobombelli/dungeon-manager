@@ -8,7 +8,7 @@ import { json, now, parseJson } from "../http";
 import { HttpError, type Router } from "../router";
 
 // A D1 statement takes at most 100 bind parameters.
-const LINKS_PER_INSERT = 16; // 6 columns
+const LINKS_PER_INSERT = 20; // 5 columns
 
 export function registerCampaignRoutes(r: Router): void {
   r.get("/campaigns", async (c) => {
@@ -58,16 +58,16 @@ export function registerCampaignRoutes(r: Router): void {
     const campaign = await getCampaignOwned(c.env.DB, c.params.id, user.id);
     const [scenes, links, outlines] = await Promise.all([
       c.env.DB.prepare(
-        "SELECT id, campaign_id, user_id, name, x, y, color, created_at, updated_at FROM scenes WHERE campaign_id = ? ORDER BY created_at DESC",
+        "SELECT id, campaign_id, user_id, name, x, y, created_at, updated_at FROM scenes WHERE campaign_id = ? ORDER BY created_at DESC",
       )
         .bind(campaign.id)
         .all<SceneRow>(),
-      c.env.DB.prepare("SELECT id, source, target, label, color FROM scene_links WHERE campaign_id = ?")
+      c.env.DB.prepare("SELECT id, source, target, label FROM scene_links WHERE campaign_id = ?")
         .bind(campaign.id)
         .all<SceneLink>(),
       // Every scene's nodes without their data: the card miniatures need the whole campaign at once.
       c.env.DB.prepare(
-        "SELECT scene_id, id, type, x, y, color FROM nodes WHERE scene_id IN (SELECT id FROM scenes WHERE campaign_id = ?) ORDER BY sort",
+        "SELECT scene_id, id, type, x, y FROM nodes WHERE scene_id IN (SELECT id FROM scenes WHERE campaign_id = ?) ORDER BY sort",
       )
         .bind(campaign.id)
         .all<NodeOutline & { scene_id: string }>(),
@@ -134,7 +134,6 @@ export function registerCampaignRoutes(r: Router): void {
       name: body.name,
       x: body.x ?? 0,
       y: body.y ?? 0,
-      color: null,
       created_at: t,
       updated_at: t,
     };
@@ -166,8 +165,8 @@ export function registerCampaignRoutes(r: Router): void {
     const updatedAt = now();
     const statements = graph.scenes.map((scene) =>
       db
-        .prepare("UPDATE scenes SET x = ?, y = ?, color = ? WHERE id = ? AND campaign_id = ?")
-        .bind(scene.x, scene.y, scene.color, scene.id, campaign.id),
+        .prepare("UPDATE scenes SET x = ?, y = ? WHERE id = ? AND campaign_id = ?")
+        .bind(scene.x, scene.y, scene.id, campaign.id),
     );
     statements.push(db.prepare("DELETE FROM scene_links WHERE campaign_id = ?").bind(campaign.id));
     for (let i = 0; i < graph.links.length; i += LINKS_PER_INSERT) {
@@ -175,11 +174,11 @@ export function registerCampaignRoutes(r: Router): void {
       statements.push(
         db
           .prepare(
-            `INSERT INTO scene_links (campaign_id, id, source, target, label, color) VALUES ${slice
-              .map(() => "(?, ?, ?, ?, ?, ?)")
+            `INSERT INTO scene_links (campaign_id, id, source, target, label) VALUES ${slice
+              .map(() => "(?, ?, ?, ?, ?)")
               .join(", ")}`,
           )
-          .bind(...slice.flatMap((l) => [campaign.id, l.id, l.source, l.target, l.label, l.color])),
+          .bind(...slice.flatMap((l) => [campaign.id, l.id, l.source, l.target, l.label])),
       );
     }
     statements.push(db.prepare("UPDATE campaigns SET updated_at = ? WHERE id = ?").bind(updatedAt, campaign.id));

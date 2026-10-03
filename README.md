@@ -25,7 +25,7 @@ npm run types    # regenerate worker-configuration.d.ts after editing wrangler.j
 Migrations live in `migrations/` and are applied by migration number: `0001_init`, `0002_campaign_graph`
 (scene positions and links), `0003_colors` (`scenes.color`, `nodes.color`), `0004_groups` (drops the
 `edges` and `prefabs` tables), `0005_link_colors` (`scene_links.color`), `0006_campaign_trash`
-(`campaigns.deleted_at`).
+(`campaigns.deleted_at`), `0007_drop_colors` (drops the three `color` columns).
 
 ```bash
 npm run db:migration -- <name>   # create migrations/NNNN_<name>.sql
@@ -75,16 +75,16 @@ npm run deploy                            # vite build + remote migrations + wra
 
 ## Model
 
-A campaign is a directed graph of scenes (links such as "leads to", each with an optional colour).
+A campaign is a directed graph of scenes (links such as "leads to").
 Links are drawn as straight arrows between card centres that bend around any card in the way
 (`route-path.ts`); a link and its reverse are drawn side by side. Each scene is a set of placed
 objects with no connections between them: Map (square), Event (circle), Stat Block (hexagon),
 Character (pill), Music (octagon), Custom (diamond) and Group (frame). A group holds its own
 nodes inside its data (`GroupSchema`, up to 200, no groups inside groups) and opens as a third
-navigation level: campaign › scene › group. Every scene and node can carry its own colour
-(`color`, a hex fill, or null for the type's pastel); a custom hex is not theme-aware, so a colour
-picked in light mode is the same hex in dark mode. Scene and group cards are frames: a thick border
-in their colour around a miniature of the nodes inside, drawn as their shapes in their colours
+navigation level: campaign › scene › group. Colour is not editable: every scene, node and link
+takes its type's pastel (`--pastel-*` in `styles.css`), defined once for light mode and once for
+dark mode with the same hue. Scene and group cards are frames: a thick border in their colour
+around a miniature of the nodes inside, drawn as their shapes in their type colours
 (`NodePreview`). `GET api/campaigns/:id` returns each scene's nodes without their data (`previews`)
 for it; a group's miniature comes from its own data. Nodes stay where the user drops them: the
 d3-force simulation only places newly added nodes, everything else is pinned. Adding a node type:
@@ -96,7 +96,7 @@ anywhere on another scene. Canvas interaction is the same at every level: click 
 selects, ctrl/cmd-click toggles selection, Ctrl/Cmd+C and Ctrl/Cmd+V copy and paste nodes with
 fresh ids (also across scenes and groups) or, on the campaign canvas, scenes with their nodes and
 the links between them, Delete removes the selection, Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z (or the
-toolbar buttons) undo and redo the document's cold states (`useHistory`: moves, links, colours,
+toolbar buttons) undo and redo the document's cold states (`useHistory`: moves, links,
 node edits, pastes; not scene creation, deletion or renaming, which are immediate server calls), and inside a scene or a
 group Escape clears the selection and then goes up one level. Wheel pans, ctrl/cmd + wheel or pinch zooms, middle or right drag pans.
 

@@ -23,7 +23,7 @@ async function createScene(name: string): Promise<Scene> {
 }
 
 function node(id: string, type: GraphNode["type"], x = 0, y = 0): GraphNode {
-  return { id, type, x, y, color: null, data: NODE_TYPES[type].defaultData() };
+  return { id, type, x, y, data: NODE_TYPES[type].defaultData() };
 }
 
 function putGraph(sceneId: string, graph: unknown, cookie = alice): Promise<Response> {
@@ -49,14 +49,6 @@ describe("PUT /scenes/:id/graph", () => {
     const after = await getGraph(scene.id);
     expect(after.graph.nodes).toEqual(nodes);
     expect(after.scene.updatedAt).toBe(updatedAt);
-  });
-
-  it("round-trips a node colour", async () => {
-    const scene = await createScene("Coloured");
-    const nodes = [{ ...node("a", "music"), color: "#AABBCC" }, node("b", "event")];
-    expect((await putGraph(scene.id, { nodes})).status).toBe(200);
-    const after = await getGraph(scene.id);
-    expect(after.graph.nodes).toEqual(nodes);
   });
 
   it("preserves node order", async () => {
@@ -108,8 +100,8 @@ describe("PUT /scenes/:id/graph", () => {
       data: {
         name: "Ambush",
         nodes: [
-          { id: "c1", type: "character", x: 10, y: 20, color: null, data: NODE_TYPES.character.defaultData() },
-          { id: "c2", type: "event", x: -4, y: 8, color: "#AABBCC", data: NODE_TYPES.event.defaultData() },
+          { id: "c1", type: "character", x: 10, y: 20, data: NODE_TYPES.character.defaultData() },
+          { id: "c2", type: "event", x: -4, y: 8, data: NODE_TYPES.event.defaultData() },
         ],
       },
     };

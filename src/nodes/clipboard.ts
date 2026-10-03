@@ -6,7 +6,6 @@ import type { GroupData } from "../../shared/nodes/group";
 export interface ClipNode {
   type: GraphNode["type"];
   data: unknown;
-  color: string | null;
   dx: number;
   dy: number;
 }
@@ -18,7 +17,7 @@ export function copyNodes(nodes: GraphNode[]): void {
   if (nodes.length === 0) return;
   const minX = Math.min(...nodes.map((n) => n.x));
   const minY = Math.min(...nodes.map((n) => n.y));
-  clipboard = nodes.map((n) => ({ type: n.type, data: n.data, color: n.color, dx: n.x - minX, dy: n.y - minY }));
+  clipboard = nodes.map((n) => ({ type: n.type, data: n.data, dx: n.x - minX, dy: n.y - minY }));
 }
 
 /** Fresh copies at `origin`; every id (including a group's children) is new. */
@@ -26,7 +25,7 @@ export function pasteNodes(origin: { x: number; y: number }, allowGroups: boolea
   return withFreshIds(
     clipboard
       .filter((n) => allowGroups || n.type !== "group")
-      .map((n) => ({ type: n.type, x: origin.x + n.dx, y: origin.y + n.dy, color: n.color, data: n.data }))
+      .map((n) => ({ type: n.type, x: origin.x + n.dx, y: origin.y + n.dy, data: n.data }))
   );
 }
 
@@ -37,7 +36,6 @@ export function withFreshIds(nodes: Omit<GraphNode, "id">[]): GraphNode[] {
     type: n.type,
     x: n.x,
     y: n.y,
-    color: n.color,
     data: n.type === "group" ? withFreshChildIds(n.data as GroupData) : structuredClone(n.data),
   }));
 }

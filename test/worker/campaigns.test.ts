@@ -97,7 +97,6 @@ describe("GET /campaigns/:id", () => {
     expect(body.links).toEqual([]);
     expect(Object.keys(body.scenes[0]).sort()).toEqual([
       "campaignId",
-      "color",
       "createdAt",
       "id",
       "name",
@@ -113,17 +112,17 @@ describe("GET /campaigns/:id", () => {
     const b = await jsonRequest(`/campaigns/${campaign.id}/scenes`, "POST", { name: "Empty" }, alice);
     const sceneA = ((await a.json()) as { scene: Scene }).scene;
     const sceneB = ((await b.json()) as { scene: Scene }).scene;
-    const child = { id: "c", type: "event", x: 5, y: 6, color: null, data: NODE_TYPES.event.defaultData() };
+    const child = { id: "c", type: "event", x: 5, y: 6, data: NODE_TYPES.event.defaultData() };
     const nodes: GraphNode[] = [
-      { id: "m", type: "map", x: 10, y: 20, color: "#aabbcc", data: NODE_TYPES.map.defaultData() },
-      { id: "g", type: "group", x: -30, y: 0.5, color: null, data: { name: "G", nodes: [child] } },
+      { id: "m", type: "map", x: 10, y: 20, data: NODE_TYPES.map.defaultData() },
+      { id: "g", type: "group", x: -30, y: 0.5, data: { name: "G", nodes: [child] } },
     ];
     expect((await jsonRequest(`/scenes/${sceneA.id}/graph`, "PUT", { nodes }, alice)).status).toBe(200);
 
     const res = await request(`/campaigns/${campaign.id}`, { headers: cookieHeader(alice) });
     const body = (await res.json()) as { previews: Record<string, NodeOutline[]> };
     expect(Object.keys(body).sort()).toEqual(["campaign", "links", "previews", "scenes"]);
-    expect(body.previews[sceneA.id]).toEqual(nodes.map(({ id, type, x, y, color }) => ({ id, type, x, y, color })));
+    expect(body.previews[sceneA.id]).toEqual(nodes.map(({ id, type, x, y }) => ({ id, type, x, y })));
     expect(body.previews[sceneB.id]).toEqual([]);
   });
 

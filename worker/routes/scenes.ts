@@ -9,14 +9,13 @@ import type { Router } from "../router";
 const GRAPH_MAX_BYTES = 8 * 1024 * 1024;
 
 // A D1 statement takes at most 100 bind parameters.
-const NODES_PER_INSERT = 12; // 8 columns
+const NODES_PER_INSERT = 14; // 7 columns
 
 interface NodeRow {
   id: string;
   type: NodeTypeId;
   x: number;
   y: number;
-  color: string | null;
   data: string;
 }
 
@@ -24,7 +23,7 @@ export function registerSceneRoutes(r: Router): void {
   r.get("/scenes/:id", async (c) => {
     const user = await requireUser(c);
     const scene = await getSceneOwned(c.env.DB, c.params.id, user.id);
-    const nodes = await c.env.DB.prepare("SELECT id, type, x, y, color, data FROM nodes WHERE scene_id = ? ORDER BY sort")
+    const nodes = await c.env.DB.prepare("SELECT id, type, x, y, data FROM nodes WHERE scene_id = ? ORDER BY sort")
       .bind(scene.id)
       .all<NodeRow>();
     const graph: Graph = {
@@ -33,7 +32,6 @@ export function registerSceneRoutes(r: Router): void {
         type: n.type,
         x: n.x,
         y: n.y,
-        color: n.color,
         data: JSON.parse(n.data) as unknown,
       })),
     };
@@ -71,11 +69,11 @@ export function registerSceneRoutes(r: Router): void {
       statements.push(
         db
           .prepare(
-            `INSERT INTO nodes (scene_id, id, type, x, y, color, data, sort) VALUES ${slice
-              .map(() => "(?, ?, ?, ?, ?, ?, ?, ?)")
+            `INSERT INTO nodes (scene_id, id, type, x, y, data, sort) VALUES ${slice
+              .map(() => "(?, ?, ?, ?, ?, ?, ?)")
               .join(", ")}`,
           )
-          .bind(...slice.flatMap((n, j) => [scene.id, n.id, n.type, n.x, n.y, n.color, JSON.stringify(n.data), i + j])),
+          .bind(...slice.flatMap((n, j) => [scene.id, n.id, n.type, n.x, n.y, JSON.stringify(n.data), i + j])),
       );
     }
     statements.push(db.prepare("UPDATE scenes SET updated_at = ? WHERE id = ?").bind(updatedAt, scene.id));

@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { NodeColorSchema } from "./color";
 
 export const CAMPAIGN_GRAPH_LIMITS = { maxScenes: 500, maxLinks: 1000, maxLabel: 200 } as const;
 
@@ -7,7 +6,6 @@ export const ScenePositionSchema = z.object({
   id: z.string().min(1),
   x: z.number(),
   y: z.number(),
-  color: NodeColorSchema.default(null),
 });
 export type ScenePosition = z.infer<typeof ScenePositionSchema>;
 
@@ -16,7 +14,6 @@ export const SceneLinkSchema = z.object({
   source: z.string().min(1),
   target: z.string().min(1),
   label: z.string().max(CAMPAIGN_GRAPH_LIMITS.maxLabel),
-  color: NodeColorSchema.default(null),
 });
 
 // Links are directed: A -> B and B -> A are distinct, only the same ordered pair twice is a duplicate.

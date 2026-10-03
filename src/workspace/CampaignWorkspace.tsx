@@ -121,16 +121,10 @@ export function CampaignWorkspace({ campaign, scenes: initialScenes, links: init
     }
   }, []);
 
-  // Colour lives on the campaign graph document; the canvas syncs it from `scenes` and autosaves it.
-  const recolorScene = useCallback(
-    (id: string, color: string | null) => setScenes((ss) => ss.map((s) => (s.id === id ? { ...s, color } : s))),
-    []
-  );
-
   // A pasted scene arrives with its nodes, so its miniature does not wait for the scene to be opened.
   const onSceneCreated = useCallback((scene: Scene, graph?: Graph) => {
     setScenes((ss) => [...ss, scene]);
-    if (graph) setPreviews((p) => ({ ...p, [scene.id]: graph.nodes.map(({ id, type, x, y, color }) => ({ id, type, x, y, color })) }));
+    if (graph) setPreviews((p) => ({ ...p, [scene.id]: graph.nodes.map(({ id, type, x, y }) => ({ id, type, x, y })) }));
   }, []);
   const onSceneDeleted = useCallback(
     (id: string) => {
@@ -221,7 +215,6 @@ export function CampaignWorkspace({ campaign, scenes: initialScenes, links: init
             onPrefetchScene={prefetch}
             onLoadSceneGraph={read}
             onRenameScene={renameScene}
-            onRecolorScene={recolorScene}
             onSceneCreated={onSceneCreated}
             onSceneDeleted={onSceneDeleted}
             onLinksChange={setLinks}
@@ -251,7 +244,7 @@ export function CampaignWorkspace({ campaign, scenes: initialScenes, links: init
                 // The editor is the only place a scene's nodes change, so its close refreshes the card miniature.
                 onUnmount={(graph) => {
                   cache.store(shownId, graph);
-                  setPreviews((p) => ({ ...p, [shownId]: graph.nodes.map(({ id, type, x, y, color }) => ({ id, type, x, y, color })) }));
+                  setPreviews((p) => ({ ...p, [shownId]: graph.nodes.map(({ id, type, x, y }) => ({ id, type, x, y })) }));
                 }}
                 onClose={closeScene}
                 onOpenGroup={openGroup}
