@@ -12,17 +12,19 @@
   --map-paper: #ffffff;
   --scrim: rgba(20, 20, 40, 0.45);
 
-  /* Pastel palette: node types and connections. */
-  --pastel-scene: #cfe3f7;
-  --pastel-map: #cdeccf;
-  --pastel-event: #fde2b8;
-  --pastel-statblock: #f6c9c9;
-  --pastel-character: #e3d3f5;
-  --pastel-custom: #fff1b8;
-  --pastel-music: #cfeee8;
-  --pastel-group: #dcdfe6;
-  --pastel-link: #c9b8e8;
-  --pastel-route: #9fc4e8;
+  /* Pastel palette: node types and connections. Each type is one OKLCH hue at a shared lightness
+     and chroma (light L 0.915 C 0.055, dark L 0.42 C 0.065; group nearly neutral), so no type
+     outshouts another and each keeps its hue across schemes. */
+  --pastel-scene: #c5e8ff;
+  --pastel-map: #caeed0;
+  --pastel-event: #ffdac1;
+  --pastel-statblock: #ffd5d7;
+  --pastel-character: #ebdaff;
+  --pastel-custom: #f4e1ba;
+  --pastel-music: #baefeb;
+  --pastel-group: #dee3ec;
+  --pastel-link: #a998dd;
+  --pastel-route: #6da4d3;
 
   /* Ability tones: one hue per ability, dark enough to read as a colour, light enough to carry
      --fg text as a fill. */
@@ -63,16 +65,16 @@
     --map-paper: #e9e6df;
     --scrim: rgba(0, 0, 0, 0.6);
 
-    --pastel-scene: #2b3f57;
-    --pastel-map: #2b4a30;
-    --pastel-event: #5a4326;
-    --pastel-statblock: #5a2f33;
-    --pastel-character: #3f3358;
-    --pastel-custom: #56502a;
-    --pastel-music: #24504b;
-    --pastel-group: #3a3e46;
-    --pastel-link: #6a5a8f;
-    --pastel-route: #4d7196;
+    --pastel-scene: #2c516e;
+    --pastel-map: #32573a;
+    --pastel-event: #684329;
+    --pastel-statblock: #6c3e42;
+    --pastel-character: #55446a;
+    --pastel-custom: #5d4a1f;
+    --pastel-music: #155855;
+    --pastel-group: #494d56;
+    --pastel-link: #8a7abc;
+    --pastel-route: #558cb9;
 
     --ability-str: #5e2b28;
     --ability-dex: #5b4a1f;
