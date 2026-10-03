@@ -23,3 +23,31 @@ export function removePaletteEntry(data: MapNodeData, index: number): MapNodeDat
     cells: data.cells.map((c) => (c === removedValue ? 0 : c > removedValue ? c - 1 : c)),
   };
 }
+
+/**
+ * Cells after flood-filling the 4-connected region of same-valued cells around `start` with `value`;
+ * null when start is out of range or already holds `value`.
+ */
+export function floodFill(data: MapNodeData, start: number, value: number): number[] | null {
+  const target = data.cells[start];
+  if (target === undefined || target === value) return null;
+  const cells = data.cells.slice();
+  const stack = [start];
+  cells[start] = value;
+  while (stack.length > 0) {
+    const i = stack.pop()!;
+    const col = i % data.cols;
+    const neighbours = [
+      col > 0 ? i - 1 : -1,
+      col < data.cols - 1 ? i + 1 : -1,
+      i - data.cols,
+      i + data.cols,
+    ];
+    for (const n of neighbours) {
+      if (n < 0 || n >= cells.length || cells[n] !== target) continue;
+      cells[n] = value;
+      stack.push(n);
+    }
+  }
+  return cells;
+}

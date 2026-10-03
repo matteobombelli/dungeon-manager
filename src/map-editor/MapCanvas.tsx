@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, type PointerEvent } from "react";
 import { MAP_LIMITS, type MapNodeData, type MapStroke } from "../../shared/nodes/map";
 import { drawMap, drawStroke, mapPixelSize } from "./draw";
-import { cellIndexAt, strokeIndexAt } from "./hitTest";
-import type { ToolState } from "./tools";
+import { brushRectAt, cellIndexAt, cellIndicesAt, strokeIndexAt } from "./hitTest";
+import { floodFill } from "./mapOps";
+import { brushOutlineSize, type ToolState } from "./tools";
 
 export interface MapCanvasProps {
   data: MapNodeData;
@@ -26,6 +27,8 @@ type Gesture =
 export function MapCanvas({ data, tools, image, onCommit, onWarning }: MapCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gestureRef = useRef<Gesture | null>(null);
+  // Last pointer position over the canvas in map pixels, for the brush outline; null once it leaves.
+  const hoverRef = useRef<{ x: number; y: number } | null>(null);
   const frameRef = useRef(0);
   // Pointer handlers and the rAF callback read the latest props through this ref.
   const latest = useRef({ data, tools, image, onCommit, onWarning });
@@ -50,6 +53,23 @@ export function MapCanvas({ data, tools, image, onCommit, onWarning }: MapCanvas
       drawStroke(ctx, tools.penColor, tools.penWidth, g.points);
       ctx.restore();
     }
+    const hover = hoverRef.current;
+    const rect = hover && brushRectAt(data, hover.x, hover.y, brushOutlineSize(tools));
+    if (rect) {
+      const z = tools.zoom;
+      const size = data.cellSize * z;
+      const [x, y, w, h] = [rect.col * size, rect.row * size, rect.cols * size, rect.rows * size];
+      // Dark under a light dashed line so the outline reads over any cell colour.
+      ctx.save();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.6)";
+      ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = "#ffffff";
+      ctx.setLineDash([4, 3]);
+      ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+      ctx.restore();
+    }
   }, []);
 
   const schedule = useCallback(() => {
@@ -71,7 +91,7 @@ export function MapCanvas({ data, tools, image, onCommit, onWarning }: MapCanvas
 
   useEffect(() => {
     schedule();
-  }, [data, image, schedule]);
+  }, [data, image, tools, schedule]);
 
   useEffect(() => () => cancelAnimationFrame(frameRef.current), []);
 
@@ -90,12 +110,15 @@ export function MapCanvas({ data, tools, image, onCommit, onWarning }: MapCanvas
     const { data, tools, onWarning } = latest.current;
     switch (g.kind) {
       case "cells": {
-        const i = cellIndexAt(data, p.x, p.y);
-        if (i === -1) return;
         if (tools.tool === "paint" && tools.paletteIndex >= data.palette.length) return;
         const value = tools.tool === "erase" ? 0 : tools.paletteIndex + 1;
-        if (g.cells[i] === value) return;
-        g.cells[i] = value;
+        let changed = false;
+        for (const i of cellIndicesAt(data, p.x, p.y, tools.brushSize)) {
+          if (g.cells[i] === value) continue;
+          g.cells[i] = value;
+          changed = true;
+        }
+        if (!changed) return;
         g.changed = true;
         schedule();
         return;
@@ -128,7 +151,15 @@ export function MapCanvas({ data, tools, image, onCommit, onWarning }: MapCanvas
   function onPointerDown(e: PointerEvent<HTMLCanvasElement>) {
     if (e.button !== 0 || gestureRef.current) return;
     e.currentTarget.setPointerCapture(e.pointerId);
-    const { data, tools, onWarning } = latest.current;
+    const { data, tools, onWarning, onCommit } = latest.current;
+    if (tools.tool === "fill") {
+      onWarning(null);
+      if (tools.paletteIndex >= data.palette.length) return;
+      const p = toMap(e);
+      const cells = floodFill(data, cellIndexAt(data, p.x, p.y), tools.paletteIndex + 1);
+      if (cells) onCommit({ ...data, cells });
+      return;
+    }
     if (tools.tool === "pen") gestureRef.current = { kind: "pen", points: [], capped: false };
     else if (tools.tool === "erase" && tools.eraseMode === "strokes")
       gestureRef.current = { kind: "strokes", strokes: data.strokes.slice(), changed: false };
@@ -138,7 +169,15 @@ export function MapCanvas({ data, tools, image, onCommit, onWarning }: MapCanvas
   }
 
   function onPointerMove(e: PointerEvent<HTMLCanvasElement>) {
-    if (gestureRef.current) apply(toMap(e));
+    const p = toMap(e);
+    hoverRef.current = p;
+    if (gestureRef.current) apply(p);
+    else schedule();
+  }
+
+  function onPointerLeave() {
+    hoverRef.current = null;
+    schedule();
   }
 
   function finish() {
@@ -161,6 +200,7 @@ export function MapCanvas({ data, tools, image, onCommit, onWarning }: MapCanvas
       onPointerMove={onPointerMove}
       onPointerUp={finish}
       onPointerCancel={finish}
+      onPointerLeave={onPointerLeave}
     />
   );
 }

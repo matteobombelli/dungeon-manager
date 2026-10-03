@@ -37,3 +37,39 @@ export function cellIndexAt(data: MapNodeData, x: number, y: number): number {
   if (col < 0 || row < 0 || col >= data.cols || row >= data.rows) return -1;
   return row * data.cols + col;
 }
+
+export interface CellRect {
+  col: number;
+  row: number;
+  cols: number;
+  rows: number;
+}
+
+/**
+ * The size x size block of cells centred on the cell under (x, y), clipped to the grid;
+ * null when (x, y) is outside the grid.
+ */
+export function brushRectAt(data: MapNodeData, x: number, y: number, size: number): CellRect | null {
+  if (cellIndexAt(data, x, y) === -1) return null;
+  const col0 = Math.floor(x / data.cellSize) - Math.floor((size - 1) / 2);
+  const row0 = Math.floor(y / data.cellSize) - Math.floor((size - 1) / 2);
+  const col = Math.max(0, col0);
+  const row = Math.max(0, row0);
+  return {
+    col,
+    row,
+    cols: Math.min(data.cols, col0 + size) - col,
+    rows: Math.min(data.rows, row0 + size) - row,
+  };
+}
+
+/** Flat indices of the cells in brushRectAt's block; empty when (x, y) is outside the grid. */
+export function cellIndicesAt(data: MapNodeData, x: number, y: number, size: number): number[] {
+  const r = brushRectAt(data, x, y, size);
+  if (!r) return [];
+  const out: number[] = [];
+  for (let row = r.row; row < r.row + r.rows; row++) {
+    for (let col = r.col; col < r.col + r.cols; col++) out.push(row * data.cols + col);
+  }
+  return out;
+}

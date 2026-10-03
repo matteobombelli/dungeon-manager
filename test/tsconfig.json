@@ -18,6 +18,8 @@
     "../worker-configuration.d.ts",
     "../src/nodes/shapes.ts",
     "../src/nodes/preview-box.ts",
-    "../src/campaign-graph/route-path.ts"
+    "../src/campaign-graph/route-path.ts",
+    "../src/map-editor/hitTest.ts",
+    "../src/map-editor/mapOps.ts"
   ]
 }

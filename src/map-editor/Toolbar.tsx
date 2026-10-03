@@ -1,8 +1,8 @@
-import { Eraser, Grid2x2, Paintbrush, Pen, Spline, Undo2, type LucideIcon } from "lucide-react";
+import { Eraser, Grid2x2, PaintBucket, Paintbrush, Pen, Spline, Undo2, type LucideIcon } from "lucide-react";
 import { MAP_LIMITS, type MapPaletteEntry } from "../../shared/nodes/map";
 import { IconButton } from "../components/IconButton";
 import { RangeInput } from "../components/RangeInput";
-import { ZOOM_LEVELS, type Tool, type ToolState } from "./tools";
+import { MAX_BRUSH_SIZE, ZOOM_LEVELS, type Tool, type ToolState } from "./tools";
 
 export interface ToolbarProps {
   tools: ToolState;
@@ -14,6 +14,7 @@ export interface ToolbarProps {
 
 const TOOLS: { id: Tool; label: string; icon: LucideIcon }[] = [
   { id: "paint", label: "Paint", icon: Paintbrush },
+  { id: "fill", label: "Fill", icon: PaintBucket },
   { id: "pen", label: "Pen", icon: Pen },
   { id: "erase", label: "Erase", icon: Eraser },
 ];
@@ -27,9 +28,9 @@ export function Toolbar({ tools, palette, onChange, canUndo, onUndo }: ToolbarPr
         ))}
       </div>
 
-      {tools.tool === "paint" && (
+      {(tools.tool === "paint" || tools.tool === "fill") && (
         <div className="map-editor__group" role="group" aria-label="Palette">
-          {palette.length === 0 && <span className="muted">Add a palette entry to paint</span>}
+          {palette.length === 0 && <span className="muted">Add a palette entry to {tools.tool}</span>}
           {palette.map((entry, i) => (
             <button
               key={entry.id}
@@ -67,6 +68,20 @@ export function Toolbar({ tools, palette, onChange, canUndo, onUndo }: ToolbarPr
         <div className="map-editor__group" role="group" aria-label="Erase mode">
           <IconButton icon={Grid2x2} label="Erase cells" active={tools.eraseMode === "cells"} onClick={() => onChange({ eraseMode: "cells" })} />
           <IconButton icon={Spline} label="Erase strokes" active={tools.eraseMode === "strokes"} onClick={() => onChange({ eraseMode: "strokes" })} />
+        </div>
+      )}
+
+      {(tools.tool === "paint" || (tools.tool === "erase" && tools.eraseMode === "cells")) && (
+        <div className="map-editor__group">
+          <label className="map-editor__field">
+            Size {tools.brushSize}
+            <RangeInput
+              min={1}
+              max={MAX_BRUSH_SIZE}
+              value={tools.brushSize}
+              onChange={(e) => onChange({ brushSize: Number(e.target.value) })}
+            />
+          </label>
         </div>
       )}
 
