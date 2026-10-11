@@ -6,6 +6,7 @@ import {
   type CharacterSection,
 } from "../../../shared/nodes/character";
 import { ImageField } from "../../components/ImageField";
+import { NumberInput } from "../../components/NumberInput";
 import { AddSectionMenu, EditorSection, useSections } from "../EditorSection";
 import type { NodeEditorProps } from "../types";
 
@@ -48,13 +49,7 @@ export function CharacterEditor({ data, onChange }: NodeEditorProps<CharacterDat
           </label>
           <label>
             Level
-            <input
-              type="number"
-              min={1}
-              max={20}
-              value={data.level}
-              onChange={(e) => set("level", Math.min(20, Math.max(1, Math.round(Number(e.target.value) || 1))))}
-            />
+            <NumberInput min={1} max={20} value={data.level} onChange={(level) => set("level", level)} />
           </label>
         </div>,
       )}

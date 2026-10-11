@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { GROUP_CHILD_TYPE_IDS } from "./ids";
 import type { NodeTypeDef } from "./registry";
-import { validateNodeData } from "./validate";
+import { parseNodeData } from "./validate";
 
 export const GROUP_LIMITS = { maxNodes: 200, maxName: 120 } as const;
 
@@ -20,13 +20,14 @@ export const GroupSchema = z
     name: z.string().max(GROUP_LIMITS.maxName),
     nodes: z.array(GroupChildSchema).max(GROUP_LIMITS.maxNodes),
   })
-  .superRefine((group, ctx) => {
+  .transform((group, ctx) => {
     const ids = new Set<string>();
-    group.nodes.forEach((node, i) => {
+    const nodes = group.nodes.map((node, i) => {
       if (ids.has(node.id)) ctx.addIssue({ code: "custom", path: ["nodes", i, "id"], message: "Duplicate node id" });
       ids.add(node.id);
-      validateNodeData(node.type, node.data, ctx, ["nodes", i, "data"]);
+      return { ...node, data: parseNodeData(node.type, node.data, ctx, ["nodes", i, "data"]) };
     });
+    return { ...group, nodes };
   });
 export type GroupData = z.infer<typeof GroupSchema>;
 

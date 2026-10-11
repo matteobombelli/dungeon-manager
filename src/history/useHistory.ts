@@ -7,7 +7,10 @@ export interface HistoryOptions<T> {
   snapshot: () => T;
   /** While any of these is true the document is in motion and is not recorded. */
   holds: RefObject<boolean>[];
-  /** Puts a recorded document back; the inputs must then snapshot to exactly that document. */
+  /**
+   * Puts a recorded document back. It may only manage part of it (the campaign canvas cannot bring
+   * back a deleted scene); whatever the inputs then snapshot to becomes the present step.
+   */
   restore: (doc: T) => void;
   /** Keyboard shortcuts (ctrl/cmd + Z, shift + Z or Y) are only taken while true. */
   enabled: boolean;
@@ -36,6 +39,8 @@ export function useHistory<T>({ inputs, snapshot, holds, restore, enabled }: His
   const future = useRef<string[]>([]);
   const present = useRef<string | null>(null);
   const lastRecorded = useRef(0);
+  // Set by an undo or redo: the change its restore causes is the step itself, not a new edit.
+  const restoring = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
@@ -50,7 +55,10 @@ export function useHistory<T>({ inputs, snapshot, holds, restore, enabled }: His
   /** Records the current document as a new step when it differs from the last recorded one. */
   function record() {
     const json = JSON.stringify(opts.current.snapshot());
-    if (present.current === null) {
+    if (present.current === null || restoring.current) {
+      // A partial restore lands next to its target; adopting what it produced keeps the stacks
+      // intact, where pushing it would clear the redo stack and leave undo stuck on this step.
+      restoring.current = false;
       present.current = json;
       return;
     }
@@ -93,6 +101,7 @@ export function useHistory<T>({ inputs, snapshot, holds, restore, enabled }: His
     present.current = target;
     // Not a coalescable edit: the next change after an undo must be its own step.
     lastRecorded.current = 0;
+    restoring.current = true;
     sync();
     opts.current.restore(JSON.parse(target) as T);
   }, []);

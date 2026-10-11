@@ -1,5 +1,5 @@
 import { CampaignCreate, CampaignUpdate, SceneCreate, type SceneLink } from "../../shared/api";
-import { CampaignGraphSchema } from "../../shared/campaign-graph";
+import { CAMPAIGN_GRAPH_LIMITS, CampaignGraphSchema } from "../../shared/campaign-graph";
 import type { NodeOutline } from "../../shared/graph";
 import { newId } from "../../shared/ids";
 import { requireUser } from "../auth/session";
@@ -73,7 +73,8 @@ export function registerCampaignRoutes(r: Router): void {
         .all<NodeOutline & { scene_id: string }>(),
     ]);
     const previews: Record<string, NodeOutline[]> = Object.fromEntries(scenes.results.map((s) => [s.id, []]));
-    for (const { scene_id, ...outline } of outlines.results) previews[scene_id].push(outline);
+    // The reads are not one snapshot: a scene created between them has nodes but no entry yet.
+    for (const { scene_id, ...outline } of outlines.results) (previews[scene_id] ??= []).push(outline);
     return json({ campaign: toCampaign(campaign), scenes: scenes.results.map(toScene), links: links.results, previews });
   });
 
@@ -126,6 +127,11 @@ export function registerCampaignRoutes(r: Router): void {
     const user = await requireUser(c);
     const campaign = await getCampaignOwned(c.env.DB, c.params.id, user.id);
     const body = await parseJson(c.req, SceneCreate);
+    // The campaign graph save carries every scene, so a campaign past its cap could never save again.
+    const count = await c.env.DB.prepare("SELECT COUNT(*) AS n FROM scenes WHERE campaign_id = ?")
+      .bind(campaign.id)
+      .first<number>("n");
+    if ((count ?? 0) >= CAMPAIGN_GRAPH_LIMITS.maxScenes) throw new HttpError(409, "Too many scenes");
     const t = now();
     const row: SceneRow = {
       id: newId(),
@@ -183,7 +189,13 @@ export function registerCampaignRoutes(r: Router): void {
     }
     statements.push(db.prepare("UPDATE campaigns SET updated_at = ? WHERE id = ?").bind(updatedAt, campaign.id));
 
-    await db.batch(statements);
+    try {
+      await db.batch(statements);
+    } catch (err) {
+      // A scene deleted after the ownership check above leaves a link pointing nowhere.
+      if (err instanceof Error && err.message.includes("FOREIGN KEY")) throw new HttpError(409, "Scene was deleted");
+      throw err;
+    }
     return json({ updatedAt });
   });
 }

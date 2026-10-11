@@ -387,6 +387,8 @@ function CampaignGraphInner({
     if (specs.length === 0) return;
     pastes.current += 1;
     const created: Scene[] = [];
+    // Only a scene whose nodes reached the server gets a miniature drawn from them.
+    const filled: (Graph | undefined)[] = [];
     try {
       for (const spec of specs) {
         const scene = await campaigns.createScene(campaignId, {
@@ -396,6 +398,7 @@ function CampaignGraphInner({
         });
         created.push(scene);
         if (spec.graph.nodes.length > 0) await scenesApi.putGraph(scene.id, spec.graph);
+        filled.push(spec.graph);
       }
     } catch (err) {
       onError(err instanceof Error ? err.message : "Could not paste the scenes");
@@ -419,7 +422,7 @@ function CampaignGraphInner({
         ),
     ]);
     layout.release(created.map((s) => s.id));
-    created.forEach((s, i) => onSceneCreated(s, specs[i].graph));
+    created.forEach((s, i) => onSceneCreated(s, filled[i]));
   }, [campaignId, centre, setNodes, setEdges, layout.release, onSceneCreated, onError]);
 
   // Inputs, the side panel (.nokey) and dialogs keep their own keys.
@@ -428,7 +431,8 @@ function CampaignGraphInner({
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented || isInputDOMNode(e)) return;
       if (document.querySelector('[role="dialog"]')) return;
-      if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+      // Held keys auto-repeat, and every paste creates scenes on the server: one press, one paste.
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.repeat) return;
       if (e.key.toLowerCase() === "c") void copySelection();
       else if (e.key.toLowerCase() === "v") void paste();
     };

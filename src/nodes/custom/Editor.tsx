@@ -1,6 +1,7 @@
+import { useEffect, useState } from "react";
 import { ChevronDown, ChevronUp, Plus, X } from "lucide-react";
 import type { CustomNodeData } from "../../../shared/nodes/custom";
-import { slugifyKey, type CustomField, type CustomFieldKind } from "../../../shared/nodes/custom-fields";
+import { CUSTOM_FIELD_LIMITS, slugifyKey, type CustomField, type CustomFieldKind } from "../../../shared/nodes/custom-fields";
 import { IconButton } from "../../components/IconButton";
 import { ImageField } from "../../components/ImageField";
 import type { NodeEditorProps } from "../types";
@@ -61,7 +62,7 @@ export function CustomEditor({ data, onChange }: NodeEditorProps<CustomNodeData>
           <div className="editor-row">
             <label>
               Label
-              <input value={f.label} onChange={(e) => renameField(index, e.target.value)} />
+              <LabelInput value={f.label} onChange={(label) => renameField(index, label)} />
             </label>
             <label>
               Kind
@@ -133,4 +134,22 @@ function FieldInput({
     case "image":
       return <ImageField label="Value" assetId={typeof value === "string" ? value : null} onChange={onChange} />;
   }
+}
+
+// A label must not be empty (the schema would refuse the whole scene), so clearing the field to
+// retype it commits nothing, and leaving it empty puts the last label back.
+function LabelInput({ value, onChange }: { value: string; onChange: (label: string) => void }) {
+  const [text, setText] = useState(value);
+  useEffect(() => setText((t) => (t === "" ? t : value)), [value]);
+  return (
+    <input
+      value={text}
+      maxLength={CUSTOM_FIELD_LIMITS.maxLabel}
+      onChange={(e) => {
+        setText(e.target.value);
+        if (e.target.value !== "") onChange(e.target.value);
+      }}
+      onBlur={() => setText(value)}
+    />
+  );
 }

@@ -13,7 +13,8 @@ const format = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
 export function relativeTime(ms: number): string {
   const seconds = (ms - Date.now()) / 1000;
   for (const [unit, size] of UNITS) {
-    if (Math.abs(seconds) >= size) return format.format(Math.round(seconds / size), unit);
+    // Truncated, not rounded: 59 minutes 40 seconds is "59 minutes ago", never "60 minutes ago".
+    if (Math.abs(seconds) >= size) return format.format(Math.trunc(seconds / size), unit);
   }
   return "just now";
 }

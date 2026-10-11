@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { X } from "lucide-react";
 import { assets } from "../api/endpoints";
 import { FileButton } from "./FileButton";
@@ -13,6 +13,9 @@ export interface ImageFieldProps {
 export function ImageField({ label = "Image", assetId, onChange }: ImageFieldProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The upload outlives the render that started it; edits made meanwhile live in the newest onChange.
+  const latestOnChange = useRef(onChange);
+  latestOnChange.current = onChange;
   const [broken, setBroken] = useState(false);
 
   async function upload(file: File) {
@@ -21,7 +24,7 @@ export function ImageField({ label = "Image", assetId, onChange }: ImageFieldPro
     try {
       const asset = await assets.upload(file);
       setBroken(false);
-      onChange(asset.id);
+      latestOnChange.current(asset.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally {

@@ -1,6 +1,7 @@
+import { env } from "cloudflare:workers";
 import { beforeAll, describe, expect, it } from "vitest";
 import type { Campaign, Scene, SceneLink } from "../../shared/api";
-import type { CampaignGraph } from "../../shared/campaign-graph";
+import { CAMPAIGN_GRAPH_LIMITS, type CampaignGraph } from "../../shared/campaign-graph";
 import { cookieHeader, jsonRequest, registerAndLogin, request } from "./helpers";
 
 // D1 state persists across tests within a file, so every registration needs its own email.
@@ -293,5 +294,20 @@ describe("POST /campaigns/:id/scenes positions", () => {
     const campaign = await createCampaign(alice, "Bad position");
     const res = await jsonRequest(`/campaigns/${campaign.id}/scenes`, "POST", { name: "Bad", x: "left" }, alice);
     expect(res.status).toBe(400);
+  });
+});
+
+describe("scene cap", () => {
+  it("refuses to create a scene past the campaign graph limit, which could never be saved", async () => {
+    const campaign = await createCampaign(alice, "Full");
+    const first = await createScene(campaign.id, "First");
+    const fill = Array.from({ length: CAMPAIGN_GRAPH_LIMITS.maxScenes - 1 }, (_, i) =>
+      env.DB.prepare(
+        "INSERT INTO scenes (id, campaign_id, user_id, name, x, y, created_at, updated_at) SELECT ?, campaign_id, user_id, 'S', 0, 0, 0, 0 FROM scenes WHERE id = ?",
+      ).bind(`fill-${i}`, first.id),
+    );
+    await env.DB.batch(fill);
+    const res = await jsonRequest(`/campaigns/${campaign.id}/scenes`, "POST", { name: "One too many" }, alice);
+    expect(res.status).toBe(409);
   });
 });

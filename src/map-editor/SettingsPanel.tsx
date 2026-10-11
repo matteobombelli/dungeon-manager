@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ImageField } from "../components/ImageField";
 import { RangeInput } from "../components/RangeInput";
 import { MAP_LIMITS, type MapNodeData } from "../../shared/nodes/map";
-import { resizeCells } from "./mapOps";
+import { resizeCells, scaleStrokes, strokesWithin } from "./mapOps";
 
 export interface SettingsPanelProps {
   data: MapNodeData;
@@ -11,7 +11,17 @@ export interface SettingsPanelProps {
 
 export function SettingsPanel({ data, onChange }: SettingsPanelProps) {
   function resize(cols: number, rows: number) {
-    onChange({ ...data, cols, rows, cells: resizeCells(data, cols, rows) });
+    onChange({
+      ...data,
+      cols,
+      rows,
+      cells: resizeCells(data, cols, rows),
+      strokes: strokesWithin(data.strokes, cols * data.cellSize, rows * data.cellSize),
+    });
+  }
+
+  function setCellSize(cellSize: number) {
+    onChange({ ...data, cellSize, strokes: scaleStrokes(data.strokes, cellSize / data.cellSize) });
   }
 
   return (
@@ -31,7 +41,7 @@ export function SettingsPanel({ data, onChange }: SettingsPanelProps) {
           value={data.cellSize}
           min={MAP_LIMITS.minCellSize}
           max={MAP_LIMITS.maxCellSize}
-          onCommit={(n) => onChange({ ...data, cellSize: n })}
+          onCommit={setCellSize}
         />
       </div>
       <ImageField
@@ -68,7 +78,8 @@ function IntField({ label, value, min, max, onCommit }: IntFieldProps) {
 
   function commit() {
     const n = Math.round(Number(text));
-    if (!Number.isFinite(n)) {
+    // An emptied field reads as 0, which would clamp to the minimum and crop the map; treat it as a cancel.
+    if (text.trim() === "" || !Number.isFinite(n)) {
       setText(String(value));
       return;
     }

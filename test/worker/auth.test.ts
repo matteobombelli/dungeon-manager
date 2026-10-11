@@ -214,6 +214,15 @@ describe("POST /auth/logout", () => {
     expect(cookies[0]).toContain("Max-Age=0");
   });
 
+  it("clears the cookie of an expired session", async () => {
+    const { cookie } = await registerAndLogin(uniqueEmail());
+    const token = cookie.slice("dm_session=".length);
+    await env.DB.prepare("UPDATE sessions SET expires_at = 0 WHERE id = ?").bind(await hashToken(token)).run();
+    const res = await request("/auth/logout", { method: "POST", headers: cookieHeader(cookie) });
+    expect(res.status).toBe(204);
+    expect(setCookies(res)[0]).toContain("Max-Age=0");
+  });
+
   it("requires a session", async () => {
     const res = await request("/auth/logout", { method: "POST" });
     expect(res.status).toBe(401);

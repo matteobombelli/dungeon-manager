@@ -41,15 +41,20 @@ interface Deck {
   fade: number;
   /** The volume a fade in is heading for, so the slider can move it mid-fade. */
   target: number;
-  frame: number | null;
+  /** The running fade's timer. */
+  frame: ReturnType<typeof setTimeout> | null;
 }
 
 const newDeck = (): Deck => ({ el: null, loaded: null, fade: 0, target: 1, frame: null });
 
 function stopFade(deck: Deck) {
-  if (deck.frame !== null) cancelAnimationFrame(deck.frame);
+  if (deck.frame !== null) clearTimeout(deck.frame);
   deck.frame = null;
 }
+
+// Timers rather than animation frames: browsers stop frames in a background tab, which would freeze
+// a fade-out half way and leave the old track playing. Timers there are only slowed down.
+const FADE_STEP_MS = 16;
 
 /**
  * Ramps a deck from its current volume to `to` ("target" follows the slider), then calls `done`. A
@@ -60,23 +65,24 @@ function ramp(deck: Deck, to: number | "target", seconds: number, done?: () => v
   if (!el) return;
   stopFade(deck);
   const goal = () => (to === "target" ? deck.target : to);
-  if (seconds <= 0) {
+  // Nodes saved before fades existed carry no fade at all; NaN would poison every volume write.
+  if (!(seconds > 0)) {
     el.volume = goal();
     done?.();
     return;
   }
   const from = el.volume;
   const start = performance.now();
-  const step = (time: number) => {
-    const progress = Math.min(1, (time - start) / (seconds * 1000));
+  const step = () => {
+    const progress = Math.min(1, (performance.now() - start) / (seconds * 1000));
     el.volume = from + (goal() - from) * progress;
-    if (progress < 1) deck.frame = requestAnimationFrame(step);
+    if (progress < 1) deck.frame = setTimeout(step, FADE_STEP_MS);
     else {
       deck.frame = null;
       done?.();
     }
   };
-  deck.frame = requestAnimationFrame(step);
+  deck.frame = setTimeout(step, FADE_STEP_MS);
 }
 
 export function AudioPlayerProvider({ children }: { children: ReactNode }) {
@@ -119,10 +125,11 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     if (!el) return;
     el.loop = opts.loop;
     deck.target = opts.volume;
-    deck.fade = opts.fadeIn;
+    const fade = Number.isFinite(opts.fadeIn) ? opts.fadeIn : 0;
+    deck.fade = fade;
     // A track caught mid fade-out ramps back up from where it is rather than dropping to silence.
-    if (el.paused && opts.fadeIn > 0) el.volume = 0;
-    ramp(deck, "target", opts.fadeIn);
+    if (el.paused && fade > 0) el.volume = 0;
+    ramp(deck, "target", fade);
     setPlayingId(id);
     // Autoplay policy or a broken asset rejects; the card must not keep showing "playing".
     el.play().catch(() => setPlayingId((playing) => (playing === id ? null : playing)));

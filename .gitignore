@@ -5,3 +5,5 @@ dist/
 .dev.vars
 .claude/launch.json
 backups/
+test-results/
+playwright-report/

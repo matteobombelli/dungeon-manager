@@ -9,9 +9,11 @@ export interface AddNodeMenuProps {
   allowGroups: boolean;
   /** Opens the list above the button, for the floating button in the canvas corner. */
   up?: boolean;
+  /** At the node cap: the button is disabled. */
+  full?: boolean;
 }
 
-export function AddNodeMenu({ onAdd, allowGroups, up }: AddNodeMenuProps) {
+export function AddNodeMenu({ onAdd, allowGroups, up, full = false }: AddNodeMenuProps) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
 
@@ -49,6 +51,8 @@ export function AddNodeMenu({ onAdd, allowGroups, up }: AddNodeMenuProps) {
         aria-label="Add node"
         aria-haspopup="menu"
         aria-expanded={open}
+        disabled={full}
+        title={full ? "This canvas holds as many nodes as it can" : undefined}
         onClick={() => setOpen((o) => !o)}
       >
         <Plus size={18} aria-hidden="true" /> <span>Node</span>

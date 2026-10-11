@@ -11,6 +11,7 @@ import {
 } from "../../../shared/nodes/event";
 import { ABILITIES, SKILLS, SKILL_ABILITY, type Ability } from "../../../shared/nodes/statblock";
 import { IconButton } from "../../components/IconButton";
+import { NumberInput } from "../../components/NumberInput";
 import { AddSectionMenu, EditorSection, useSections } from "../EditorSection";
 import type { NodeEditorProps } from "../types";
 
@@ -111,13 +112,7 @@ export function EventEditor({ data, onChange }: NodeEditorProps<EventData>) {
               <div className="editor-row">
                 <label>
                   DC
-                  <input
-                    type="number"
-                    min={1}
-                    max={40}
-                    value={c.dc}
-                    onChange={(e) => updateCheck(c.id, { dc: Math.min(40, Math.max(1, Math.round(Number(e.target.value) || 1))) })}
-                  />
+                  <NumberInput min={1} max={40} value={c.dc} onChange={(dc) => updateCheck(c.id, { dc })} />
                 </label>
                 <IconButton icon={X} label="Remove check" onClick={() => setChecks(data.checks.filter((x) => x.id !== c.id))} />
               </div>

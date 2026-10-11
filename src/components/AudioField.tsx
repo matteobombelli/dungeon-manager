@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { X } from "lucide-react";
 import { assets } from "../api/endpoints";
 import { FileButton } from "./FileButton";
@@ -22,13 +22,16 @@ export interface AudioFieldProps {
 export function AudioField({ label = "Audio", assetId, onChange }: AudioFieldProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The upload outlives the render that started it; edits made meanwhile live in the newest onChange.
+  const latestOnChange = useRef(onChange);
+  latestOnChange.current = onChange;
 
   async function upload(file: File) {
     setUploading(true);
     setError(null);
     try {
       const asset = await assets.upload(withOpusType(file));
-      onChange(asset.id);
+      latestOnChange.current(asset.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally {

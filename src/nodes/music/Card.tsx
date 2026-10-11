@@ -29,10 +29,12 @@ export function MusicCard({ id, data, selected }: NodeProps<Node<MusicData>>) {
         <IconButton
           icon={playing ? Pause : Play}
           label={playing ? "Pause" : "Play"}
-          disabled={!assetId}
-          onClick={() =>
-            assetId && player.toggle(id, assets.url(assetId), { loop: data.loop, volume: data.volume, fadeIn: data.fadeIn })
-          }
+          // A playing track must stay pausable even once its audio has been removed.
+          disabled={!playing && !assetId}
+          onClick={() => {
+            if (playing) player.pause();
+            else if (assetId) player.play(id, assets.url(assetId), { loop: data.loop, volume: data.volume, fadeIn: data.fadeIn });
+          }}
         />
       </div>
       <div className="node-card__line">{line}</div>

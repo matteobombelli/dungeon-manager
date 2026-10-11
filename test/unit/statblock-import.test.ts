@@ -64,6 +64,15 @@ describe.each([
     expect(data.legendaryActions).toHaveLength(3);
     expect(data.legendaryActions[0].name).toBe("Detect");
   });
+
+  it("imports the dragon's limited uses the same way from every source", () => {
+    const data = importMonster(dragon);
+    const names = (fs: { name: string }[]) => fs.map((f) => f.name);
+    expect(names(data.traits)).toContain("Legendary Resistance (3/Day)");
+    expect(names(data.actions)).toContain("Fire Breath (Recharge 5-6)");
+    expect(names(data.legendaryActions)).toContain("Wing Attack (Costs 2 Actions)");
+    expect(data.legendaryResistances).toBe(3);
+  });
 });
 
 describe("source specifics", () => {

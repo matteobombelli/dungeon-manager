@@ -41,6 +41,12 @@ export function importMonster(raw: unknown): StatblockData {
   else if ("key" in raw && "ability_scores" in raw) data = fromOpen5eV2(raw);
   else throw new ImportError("Unrecognised monster JSON (expected 5e SRD API, Open5e v1 or Open5e v2)");
 
+  // Open5e v1 and the SRD name the trait "Legendary Resistance (3/Day)"; the tracker wants the count.
+  if (data.legendaryResistances === undefined) {
+    const uses = data.traits.map((t) => /^legendary resistance\b.*\((\d+)\/day\)/i.exec(t.name)?.[1]).find(Boolean);
+    if (uses) data.legendaryResistances = Number(uses);
+  }
+
   const parsed = StatblockSchema.safeParse(data);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
@@ -80,13 +86,42 @@ function fromSrd(raw: Rec): StatblockData {
     languages: text(raw.languages),
     challengeRating: challengeRating(raw.challenge_rating),
     xp: int(raw.xp),
-    traits: features(raw.special_abilities),
-    actions: features(raw.actions),
-    reactions: features(raw.reactions),
-    legendaryActions: features(raw.legendary_actions),
+    traits: features(raw.special_abilities, "", srdUsage),
+    actions: features(raw.actions, "", srdUsage),
+    reactions: features(raw.reactions, "", srdUsage),
+    legendaryActions: features(raw.legendary_actions, "", srdUsage),
     legendaryDescription: "",
     description: text(raw.desc),
   };
+}
+
+// The SRD API keeps limits out of the name ("Fire Breath" + usage); Open5e v1 writes them in, as
+// "Fire Breath (Recharge 5-6)". Both import the v1 way so the same monster reads the same.
+function srdUsage(feature: Rec): string {
+  const usage = isRecord(feature.usage) ? feature.usage : null;
+  if (!usage) return "";
+  const type = text(usage.type).toLowerCase();
+  if (type === "per day" && typeof usage.times === "number") return ` (${usage.times}/Day)`;
+  if (type === "recharge on roll" && typeof usage.min_value === "number") return rechargeSuffix(usage.min_value);
+  if (type === "recharge after rest") return " (Recharges after a Short or Long Rest)";
+  return "";
+}
+
+function rechargeSuffix(min: number): string {
+  return min >= 6 ? " (Recharge 6)" : ` (Recharge ${min}-6)`;
+}
+
+function v2Usage(action: Rec): string {
+  let suffix = "";
+  const limits = isRecord(action.usage_limits) ? action.usage_limits : null;
+  if (limits && typeof limits.param === "number") {
+    const type = text(limits.type);
+    if (type === "RECHARGE_ON_ROLL") suffix += rechargeSuffix(limits.param);
+    else if (type === "PER_DAY") suffix += ` (${limits.param}/Day)`;
+  }
+  const cost = action.legendary_action_cost;
+  if (typeof cost === "number" && cost > 1) suffix += ` (Costs ${cost} Actions)`;
+  return suffix;
 }
 
 function srdProficiencies(raw: Rec): {
@@ -170,7 +205,7 @@ function fromOpen5eV2(raw: Rec): StatblockData {
   for (const action of list(raw.actions)) {
     const kind = V2_ACTION_TYPES[text(action.action_type) as keyof typeof V2_ACTION_TYPES] ?? "actions";
     const suffix = text(action.action_type) === "BONUS_ACTION" ? " (Bonus Action)" : "";
-    buckets[kind].push({ name: text(action.name) + suffix, desc: text(action.desc) });
+    buckets[kind].push({ name: withSuffix(text(action.name), v2Usage(action)) + suffix, desc: text(action.desc) });
   }
 
   return {
@@ -242,8 +277,13 @@ function list(value: unknown): Rec[] {
   return Array.isArray(value) ? value.filter(isRecord) : [];
 }
 
-function features(value: unknown, suffix = ""): Feature[] {
-  return list(value).map((f) => ({ name: text(f.name) + suffix, desc: text(f.desc) }));
+function features(value: unknown, suffix = "", usage?: (feature: Rec) => string): Feature[] {
+  return list(value).map((f) => ({ name: withSuffix(text(f.name), usage?.(f) ?? "") + suffix, desc: text(f.desc) }));
+}
+
+// A name that already spells out its limit ("Wing Attack (Costs 2 Actions)") is left as it is.
+function withSuffix(name: string, suffix: string): string {
+  return suffix && !name.toLowerCase().includes(suffix.trim().toLowerCase()) ? name + suffix : name;
 }
 
 /** Damage/condition lists arrive as comma-separated strings, plain arrays or arrays of `{ name }`. */

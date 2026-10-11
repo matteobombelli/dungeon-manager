@@ -29,6 +29,7 @@ export function MapCanvas({ data, tools, image, onCommit, onWarning }: MapCanvas
   const gestureRef = useRef<Gesture | null>(null);
   // Last pointer position over the canvas in map pixels, for the brush outline; null once it leaves.
   const hoverRef = useRef<{ x: number; y: number } | null>(null);
+  const pointerRef = useRef<number | null>(null);
   const frameRef = useRef(0);
   // Pointer handlers and the rAF callback read the latest props through this ref.
   const latest = useRef({ data, tools, image, onCommit, onWarning });
@@ -43,6 +44,15 @@ export function MapCanvas({ data, tools, image, onCommit, onWarning }: MapCanvas
     const view =
       g?.kind === "cells" ? { ...data, cells: g.cells } : g?.kind === "strokes" ? { ...data, strokes: g.strokes } : data;
     const dpr = window.devicePixelRatio || 1;
+    // The device pixel ratio changes with browser zoom or a move to another display, and nothing
+    // re-renders for it, so the backing store is checked against it on every frame.
+    const { width, height } = mapPixelSize(data);
+    const backingWidth = Math.round(width * tools.zoom * dpr);
+    const backingHeight = Math.round(height * tools.zoom * dpr);
+    if (ctx.canvas.width !== backingWidth || ctx.canvas.height !== backingHeight) {
+      ctx.canvas.width = backingWidth;
+      ctx.canvas.height = backingHeight;
+    }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawMap(ctx, view, { scale: tools.zoom, image, showGrid: true });
     if (g?.kind === "pen") {
@@ -81,9 +91,7 @@ export function MapCanvas({ data, tools, image, onCommit, onWarning }: MapCanvas
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = Math.round(width * zoom * dpr);
-    canvas.height = Math.round(height * zoom * dpr);
+    // The backing store is sized by draw(), which also follows device pixel ratio changes.
     canvas.style.width = `${width * zoom}px`;
     canvas.style.height = `${height * zoom}px`;
     schedule();
@@ -151,6 +159,7 @@ export function MapCanvas({ data, tools, image, onCommit, onWarning }: MapCanvas
   function onPointerDown(e: PointerEvent<HTMLCanvasElement>) {
     if (e.button !== 0 || gestureRef.current) return;
     e.currentTarget.setPointerCapture(e.pointerId);
+    pointerRef.current = e.pointerId;
     const { data, tools, onWarning, onCommit } = latest.current;
     if (tools.tool === "fill") {
       onWarning(null);
@@ -171,7 +180,7 @@ export function MapCanvas({ data, tools, image, onCommit, onWarning }: MapCanvas
   function onPointerMove(e: PointerEvent<HTMLCanvasElement>) {
     const p = toMap(e);
     hoverRef.current = p;
-    if (gestureRef.current) apply(p);
+    if (gestureRef.current && e.pointerId === pointerRef.current) apply(p);
     else schedule();
   }
 
@@ -180,7 +189,10 @@ export function MapCanvas({ data, tools, image, onCommit, onWarning }: MapCanvas
     schedule();
   }
 
-  function finish() {
+  // Only the pointer that started the gesture ends it: a second finger lifting must not cut a stroke short.
+  function finish(e: PointerEvent<HTMLCanvasElement>) {
+    if (e.pointerId !== pointerRef.current) return;
+    pointerRef.current = null;
     const g = gestureRef.current;
     if (!g) return;
     gestureRef.current = null;
@@ -200,6 +212,7 @@ export function MapCanvas({ data, tools, image, onCommit, onWarning }: MapCanvas
       onPointerMove={onPointerMove}
       onPointerUp={finish}
       onPointerCancel={finish}
+      onLostPointerCapture={finish}
       onPointerLeave={onPointerLeave}
     />
   );

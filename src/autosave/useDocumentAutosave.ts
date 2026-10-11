@@ -42,6 +42,10 @@ export function useDocumentAutosave<T>({
   const needsSnapshot = useRef(false);
   const saving = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Bumped when the document is let go (unmount or key change). A save still in flight then belongs to
+  // a document that has already been flushed, and must not touch the state or schedule a resend:
+  // that resend could land after a newer editor's save and overwrite it.
+  const generation = useRef(0);
 
   const isHot = () => opts.current.holds.some((h) => h.current);
 
@@ -54,6 +58,12 @@ export function useDocumentAutosave<T>({
   function isDirty() {
     if (needsSnapshot.current) takeSnapshot();
     return latest.current !== null && latest.current.json !== lastSaved.current;
+  }
+
+  // Back at the saved document (an edit undone by hand before the debounce ran): nothing to send,
+  // but the status must stop reading "dirty". An in-flight save reports for itself.
+  function settle() {
+    if (!saving.current) setStatus(hasSaved.current ? "saved" : "idle");
   }
 
   function schedule(ms: number) {
@@ -70,10 +80,13 @@ export function useDocumentAutosave<T>({
     if (needsSnapshot.current) {
       // Just went cold: snapshot now, then give the settled document the usual debounce.
       if (isDirty()) schedule(DEBOUNCE_MS);
-      else setStatus(hasSaved.current ? "saved" : "idle");
+      else settle();
       return;
     }
-    if (!isDirty()) return;
+    if (!isDirty()) {
+      settle();
+      return;
+    }
     if (saving.current) return; // the in-flight save reschedules when it finishes
     const current = latest.current!;
     const parsed = opts.current.schema.safeParse(current.doc);
@@ -85,8 +98,10 @@ export function useDocumentAutosave<T>({
     }
     saving.current = true;
     setStatus("saving");
+    const gen = generation.current;
     try {
       await opts.current.save(current.doc);
+      if (gen !== generation.current) return;
       lastSaved.current = current.json;
       hasSaved.current = true;
       setError(null);
@@ -97,11 +112,13 @@ export function useDocumentAutosave<T>({
         setStatus("saved");
       }
     } catch (err) {
+      if (gen !== generation.current) return;
       setError(err instanceof Error ? err.message : "Save failed");
       setStatus("error");
       schedule(RETRY_MS);
     } finally {
-      saving.current = false;
+      // After a key change the flag belongs to the new document's saves.
+      if (gen === generation.current) saving.current = false;
     }
   }
 
@@ -137,6 +154,8 @@ export function useDocumentAutosave<T>({
       if (timer.current) clearTimeout(timer.current);
       timer.current = null;
       flush();
+      generation.current += 1;
+      saving.current = false;
     };
   }, [key, flushUrl]);
 
@@ -147,7 +166,10 @@ export function useDocumentAutosave<T>({
       if (!timer.current) schedule(HOLD_RECHECK_MS);
       return;
     }
-    if (!isDirty()) return;
+    if (!isDirty()) {
+      settle();
+      return;
+    }
     setStatus("dirty");
     schedule(DEBOUNCE_MS);
   }, inputs);

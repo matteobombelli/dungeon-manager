@@ -51,6 +51,40 @@ describe("PUT /scenes/:id/graph", () => {
     expect(after.scene.updatedAt).toBe(updatedAt);
   });
 
+  it("stores the parsed data: unknown keys dropped, defaults filled, group children too", async () => {
+    const scene = await createScene("Parsed");
+    const music = { title: "Old", assetId: null, loop: true, volume: 0.5 }; // saved before fadeIn existed
+    const custom = { ...NODE_TYPES.custom.defaultData(), prefabId: "p1" };
+    const group = {
+      name: "G",
+      nodes: [
+        { id: "gm", type: "music", x: 0, y: 0, data: music },
+        { id: "gc", type: "custom", x: 0, y: 0, data: custom },
+      ],
+    };
+    const nodes = [
+      { id: "m", type: "music", x: 0, y: 0, data: music },
+      { id: "c", type: "custom", x: 0, y: 0, data: custom },
+      { id: "g", type: "group", x: 0, y: 0, data: group },
+    ];
+    expect((await putGraph(scene.id, { nodes })).status).toBe(200);
+    const after = await getGraph(scene.id);
+    const byId = new Map(after.graph.nodes.map((n) => [n.id, n.data as Record<string, unknown>]));
+    expect(byId.get("m")).toEqual({ ...music, fadeIn: 0 });
+    expect(byId.get("c")).toEqual(NODE_TYPES.custom.defaultData());
+    const children = (byId.get("g") as { nodes: GraphNode[] }).nodes;
+    expect(children[0].data).toEqual({ ...music, fadeIn: 0 });
+    expect(children[1].data).toEqual(NODE_TYPES.custom.defaultData());
+  });
+
+  it("refuses a node too large for one D1 row with 413, not 500", async () => {
+    const scene = await createScene("Huge node");
+    const data = { ...NODE_TYPES.event.defaultData(), description: "x".repeat(2 * 1024 * 1024) };
+    const res = await putGraph(scene.id, { nodes: [{ id: "big", type: "event", x: 0, y: 0, data }] });
+    expect(res.status).toBe(413);
+    expect(await res.json()).toMatchObject({ error: "Node too large", details: { id: "big" } });
+  });
+
   it("preserves node order", async () => {
     const scene = await createScene("Order");
     const nodes = ["c", "a", "b", "z", "d"].map((id) => node(id, "event"));

@@ -1,4 +1,5 @@
 import { API_PREFIX } from "../shared/api";
+import { sweepAssets } from "./asset-sweep";
 import { json } from "./http";
 import { registerAssetRoutes } from "./routes/assets";
 import { registerAuthRoutes } from "./routes/auth";
@@ -28,5 +29,14 @@ export default {
       return env.ASSETS.fetch(request);
     }
     return router.handle(request, env, ctx);
+  },
+
+  // Daily (wrangler.jsonc triggers): deletes uploads no scene has referenced for the grace period.
+  async scheduled(controller, env, ctx): Promise<void> {
+    ctx.waitUntil(
+      sweepAssets(env, controller.scheduledTime).then(({ deleted }) => {
+        if (deleted > 0) console.log(`asset sweep: deleted ${deleted}`);
+      }),
+    );
   },
 } satisfies ExportedHandler<Env>;

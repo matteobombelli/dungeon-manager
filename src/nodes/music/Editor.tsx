@@ -28,7 +28,15 @@ export function MusicEditor({ nodeId, data, onChange }: NodeEditorProps<MusicDat
         Title
         <input value={data.title} onChange={(e) => set("title", e.target.value)} />
       </label>
-      <AudioField label="Track" assetId={data.assetId} onChange={(id) => set("assetId", id)} />
+      <AudioField
+        label="Track"
+        assetId={data.assetId}
+        onChange={(id) => {
+          set("assetId", id);
+          // The removed or replaced file is still what is sounding.
+          if (playing) player.pause();
+        }}
+      />
       <label className="editor-inline">
         <input type="checkbox" checked={data.loop} onChange={(e) => setLoop(e.target.checked)} />
         Loop
@@ -50,7 +58,7 @@ export function MusicEditor({ nodeId, data, onChange }: NodeEditorProps<MusicDat
           min={0}
           max={FADE_IN_MAX}
           step={0.5}
-          value={data.fadeIn}
+          value={data.fadeIn ?? 0}
           onChange={(e) => set("fadeIn", Math.min(FADE_IN_MAX, Math.max(0, Number(e.target.value) || 0)))}
         />
       </label>
@@ -58,10 +66,12 @@ export function MusicEditor({ nodeId, data, onChange }: NodeEditorProps<MusicDat
         <IconButton
           icon={playing ? Pause : Play}
           label={playing ? "Pause" : "Play"}
-          disabled={!data.assetId}
-          onClick={() =>
-            data.assetId && player.toggle(nodeId, assets.url(data.assetId), { loop: data.loop, volume: data.volume, fadeIn: data.fadeIn })
-          }
+          disabled={!playing && !data.assetId}
+          onClick={() => {
+            if (playing) player.pause();
+            else if (data.assetId)
+              player.play(nodeId, assets.url(data.assetId), { loop: data.loop, volume: data.volume, fadeIn: data.fadeIn });
+          }}
         />
       </div>
     </>

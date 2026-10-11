@@ -24,5 +24,7 @@
   "r2_buckets": [
     { "binding": "BUCKET", "bucket_name": "dungeon-manager-prod" }
   ],
+  // Daily garbage collection of unreferenced uploads (worker/asset-sweep.ts).
+  "triggers": { "crons": ["17 4 * * *"] },
   "observability": { "enabled": true }
 }

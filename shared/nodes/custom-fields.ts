@@ -3,9 +3,11 @@ import { z } from "zod";
 export const CustomFieldKindSchema = z.enum(["text", "number", "image"]);
 export type CustomFieldKind = z.infer<typeof CustomFieldKindSchema>;
 
+export const CUSTOM_FIELD_LIMITS = { maxLabel: 120 } as const;
+
 export const CustomFieldSchema = z.object({
   key: z.string().regex(/^[a-z][a-z0-9_]{0,39}$/),
-  label: z.string().min(1).max(120),
+  label: z.string().min(1).max(CUSTOM_FIELD_LIMITS.maxLabel),
   kind: CustomFieldKindSchema,
 });
 export type CustomField = z.infer<typeof CustomFieldSchema>;

@@ -47,10 +47,11 @@ export interface CellRect {
 
 /**
  * The size x size block of cells centred on the cell under (x, y), clipped to the grid;
- * null when (x, y) is outside the grid.
+ * null when (x, y) is outside the grid or size is below 1.
  */
 export function brushRectAt(data: MapNodeData, x: number, y: number, size: number): CellRect | null {
-  if (cellIndexAt(data, x, y) === -1) return null;
+  // Size 0 is "no brush" (the pen tools); it would otherwise come out as a -1 x -1 rect.
+  if (size < 1 || cellIndexAt(data, x, y) === -1) return null;
   const col0 = Math.floor(x / data.cellSize) - Math.floor((size - 1) / 2);
   const row0 = Math.floor(y / data.cellSize) - Math.floor((size - 1) / 2);
   const col = Math.max(0, col0);

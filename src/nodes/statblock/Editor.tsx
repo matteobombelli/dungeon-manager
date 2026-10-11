@@ -20,6 +20,7 @@ import {
   type Tracker,
 } from "../../../shared/nodes/statblock";
 import { IconButton } from "../../components/IconButton";
+import { NumberInput } from "../../components/NumberInput";
 import { AddSectionMenu, EditorSection, useSections } from "../EditorSection";
 import type { NodeEditorProps } from "../types";
 import { ImportDialog } from "./ImportDialog";
@@ -30,8 +31,6 @@ const SRD_CONDITIONS = new Set<string>(CONDITIONS);
 
 export function StatblockEditor({ data, onChange }: NodeEditorProps<StatblockData>) {
   const [importOpen, setImportOpen] = useState(false);
-  // Once the XP is typed by hand, changing the challenge rating no longer overwrites it.
-  const [xpEdited, setXpEdited] = useState(false);
 
   const set = <K extends keyof StatblockData>(key: K, value: StatblockData[K]) => onChange({ ...data, [key]: value });
 
@@ -60,8 +59,10 @@ export function StatblockEditor({ data, onChange }: NodeEditorProps<StatblockDat
     set("skills", skills);
   };
 
+  // XP follows the challenge rating until it is typed by hand; read from the data, so the choice
+  // survives the panel remounting.
   const setCR = (cr: ChallengeRating) =>
-    onChange({ ...data, challengeRating: cr, xp: xpEdited ? data.xp : xpForCR(cr) });
+    onChange({ ...data, challengeRating: cr, xp: data.xp === xpForCR(data.challengeRating) ? xpForCR(cr) : data.xp });
 
   const modes = [...SPEED_MODES, ...Object.keys(data.speed).filter((m) => !SPEED_MODES.includes(m))];
 
@@ -72,8 +73,11 @@ export function StatblockEditor({ data, onChange }: NodeEditorProps<StatblockDat
   const tracker = data.tracker ?? defaultTracker();
   const setTracker = (patch: Partial<Tracker>) => set("tracker", { ...tracker, ...patch });
 
+  // Damage takes temporary hit points first, as in the rules.
   const shiftHp = (delta: number) =>
-    setTracker({ currentHp: Math.min(maxHp, Math.max(0, (tracker.currentHp ?? maxHp) + delta)) });
+    delta < 0 && tracker.tempHp > 0
+      ? setTracker({ tempHp: tracker.tempHp - 1 })
+      : setTracker({ currentHp: Math.min(maxHp, Math.max(0, (tracker.currentHp ?? maxHp) + delta)) });
 
   const toggleCondition = (condition: string) =>
     setTracker({
@@ -290,7 +294,18 @@ export function StatblockEditor({ data, onChange }: NodeEditorProps<StatblockDat
                 type="number"
                 min={0}
                 value={data.hitPoints.average}
-                onChange={(e) => set("hitPoints", { ...data.hitPoints, average: wholeNumber(e.target.value) })}
+                onChange={(e) => {
+                  const average = wholeNumber(e.target.value);
+                  // Current HP never reads above the maximum it is tracked against.
+                  const current = data.tracker?.currentHp;
+                  onChange({
+                    ...data,
+                    hitPoints: { ...data.hitPoints, average },
+                    ...(data.tracker && current != null && current > average
+                      ? { tracker: { ...data.tracker, currentHp: average } }
+                      : {}),
+                  });
+                }}
               />
             </label>
             <label>
@@ -322,17 +337,11 @@ export function StatblockEditor({ data, onChange }: NodeEditorProps<StatblockDat
           {ABILITIES.map((ability) => (
             <label key={ability} className={`ability ability--${ability}`}>
               {ability.toUpperCase()} ({formatModifier(abilityModifier(data.abilities[ability]))})
-              <input
-                type="number"
+              <NumberInput
                 min={1}
                 max={30}
                 value={data.abilities[ability]}
-                onChange={(e) =>
-                  set("abilities", {
-                    ...data.abilities,
-                    [ability]: Math.min(30, Math.max(1, wholeNumber(e.target.value, 10))),
-                  })
-                }
+                onChange={(score) => set("abilities", { ...data.abilities, [ability]: score })}
               />
             </label>
           ))}
@@ -425,10 +434,7 @@ export function StatblockEditor({ data, onChange }: NodeEditorProps<StatblockDat
               type="number"
               min={0}
               value={data.xp}
-              onChange={(e) => {
-                setXpEdited(true);
-                set("xp", wholeNumber(e.target.value));
-              }}
+              onChange={(e) => set("xp", wholeNumber(e.target.value))}
             />
           </label>
         </div>,
@@ -510,9 +516,14 @@ function ConditionInput({ onAdd }: { onAdd: (condition: string) => void }) {
   );
 }
 
+// Far above any real stat block (CR 30 is 155,000 XP), and well inside the safe integers the schema
+// demands: a pasted 1e21 would otherwise make the whole scene unsavable.
+const MAX_WHOLE = 9_999_999;
+const MAX_BONUS = 999;
+
 function wholeNumber(value: string, fallback = 0): number {
   const n = Math.round(Number(value));
-  return Number.isFinite(n) && value.trim() !== "" ? Math.max(0, n) : fallback;
+  return Number.isFinite(n) && value.trim() !== "" ? Math.min(MAX_WHOLE, Math.max(0, n)) : fallback;
 }
 
 function BonusField({
@@ -533,7 +544,13 @@ function BonusField({
         type="number"
         value={value ?? ""}
         placeholder="—"
-        onChange={(e) => onChange(e.target.value === "" ? undefined : Math.round(Number(e.target.value) || 0))}
+        onChange={(e) =>
+          onChange(
+            e.target.value === ""
+              ? undefined
+              : Math.min(MAX_BONUS, Math.max(-MAX_BONUS, Math.round(Number(e.target.value) || 0))),
+          )
+        }
       />
     </label>
   );

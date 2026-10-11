@@ -18,8 +18,10 @@ import {
 import { isInputDOMNode } from "@xyflow/system";
 import "@xyflow/react/dist/style.css";
 import { newId } from "../../shared/ids";
-import type { GroupData } from "../../shared/nodes/group";
+import { GRAPH_LIMITS } from "../../shared/graph";
+import { GROUP_LIMITS, type GroupData } from "../../shared/nodes/group";
 import { NODE_TYPES, type NodeTypeId } from "../../shared/nodes/registry";
+import { useAudioPlayer } from "../audio/AudioPlayerProvider";
 import { MultiSelectPanel } from "../components/MultiSelectPanel";
 import { SidePanel } from "../components/SidePanel";
 import { copyNodes, pasteNodes } from "../nodes/clipboard";
@@ -102,6 +104,8 @@ function NodeCanvasInner({
   const { screenToFlowPosition, flowToScreenPosition, deleteElements, fitView, getNode, getNodes } =
     useReactFlow<AppNode, Edge>();
   const updateNodeInternals = useUpdateNodeInternals();
+  // What the schema accepts: a scene's own nodes, or a group's children.
+  const capacity = allowGroups ? GRAPH_LIMITS.maxNodes : GROUP_LIMITS.maxNodes;
 
   const latest = useRef(nodes);
   latest.current = nodes;
@@ -202,6 +206,9 @@ function NodeCanvasInner({
 
   // A group takes its children with it, so emptying one that still has some asks first.
   const onBeforeDelete: OnBeforeDelete<AppNode, Edge> = useCallback(async ({ nodes: ns }) => {
+    // React Flow's Delete/Backspace listener only skips inputs, so a key pressed in a modal (the map
+    // editor, the stat block import) would otherwise delete the node the modal belongs to.
+    if (document.querySelector('[role="dialog"]')) return false;
     const full = ns.filter((n) => n.type === "group" && (n.data as GroupData).nodes.length > 0);
     if (full.length === 0) return true;
     const one = full[0].data as GroupData;
@@ -212,11 +219,19 @@ function NodeCanvasInner({
     );
   }, []);
 
-  // Deleting a node mid-drag ends the drag without a stop event.
-  const onNodesDelete: OnNodesDelete<AppNode> = useCallback(() => {
-    dragging.current = false;
-    markCold();
-  }, [markCold]);
+  // Deleting a node mid-drag ends the drag without a stop event. A deleted music node, or a group
+  // holding one, takes its track with it: nothing would be left to pause it from.
+  const { playingId, pause } = useAudioPlayer();
+  const onNodesDelete: OnNodesDelete<AppNode> = useCallback(
+    (deleted) => {
+      dragging.current = false;
+      markCold();
+      if (playingId === null) return;
+      const ids = deleted.flatMap((n) => [n.id, ...(n.type === "group" ? (n.data as GroupData).nodes.map((c) => c.id) : [])]);
+      if (ids.includes(playingId)) pause();
+    },
+    [markCold, playingId, pause]
+  );
 
   // The layer above grows out of the card's centre on screen.
   const openGroup = useCallback(
@@ -253,6 +268,7 @@ function NodeCanvasInner({
 
   const addNode = useCallback(
     (type: NodeTypeId, data: Record<string, unknown>) => {
+      if (getNodes().length >= capacity) return;
       const at = centre();
       const nodeId = newId();
       setNodes((ns) => {
@@ -267,7 +283,7 @@ function NodeCanvasInner({
       layout.release([nodeId]);
       markCold();
     },
-    [centre, setNodes, layout.release, markCold]
+    [centre, capacity, getNodes, setNodes, layout.release, markCold]
   );
 
   const copySelection = useCallback(() => {
@@ -278,7 +294,9 @@ function NodeCanvasInner({
   const paste = useCallback(() => {
     const at = centre();
     const step = pastes.current * PASTE_CASCADE;
-    const pasted = fromGraph(pasteNodes({ x: at.x + step, y: at.y + step }, allowGroups));
+    // Past the cap the whole document would fail validation and stop saving, so the paste is cut short.
+    const room = capacity - getNodes().length;
+    const pasted = fromGraph(pasteNodes({ x: at.x + step, y: at.y + step }, allowGroups)).slice(0, Math.max(0, room));
     if (pasted.length === 0) return;
     pastes.current += 1;
     setNodes((ns) => [
@@ -287,7 +305,7 @@ function NodeCanvasInner({
     ]);
     layout.release(pasted.map((n) => n.id));
     markCold();
-  }, [centre, allowGroups, setNodes, layout.release, markCold]);
+  }, [centre, allowGroups, capacity, getNodes, setNodes, layout.release, markCold]);
 
   // Escape clears the selection, or closes this layer when nothing is selected. Inputs, the side
   // panel (.nokey) and dialogs keep their own keys, and so does the add menu (it preventDefaults).
@@ -301,7 +319,8 @@ function NodeCanvasInner({
         else onEscape();
         return;
       }
-      if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+      // Held keys auto-repeat: one press, one copy or paste.
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.repeat) return;
       if (e.key.toLowerCase() === "c") copySelection();
       else if (e.key.toLowerCase() === "v") paste();
     };
@@ -354,7 +373,7 @@ function NodeCanvasInner({
               <Background />
               <Controls />
             </ReactFlow>
-            <AddNodeMenu onAdd={addNode} allowGroups={allowGroups} up />
+            <AddNodeMenu onAdd={addNode} allowGroups={allowGroups} full={nodes.length >= capacity} up />
           </div>
           <SidePanel open={selected.length > 0}>
             {selected.length > 1 ? (

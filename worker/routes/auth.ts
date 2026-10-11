@@ -1,8 +1,8 @@
 import { LoginBody, RegisterBody, type User } from "../../shared/api";
 import { newId } from "../../shared/ids";
 import { DUMMY_HASH, hashPassword, verifyPassword } from "../auth/password";
-import { createSession, destroySession, requireUser } from "../auth/session";
-import { json, now, parseJson } from "../http";
+import { SESSION_COOKIE, createSession, destroySession, requireUser } from "../auth/session";
+import { json, now, parseJson, readCookie } from "../http";
 import { HttpError, type Router } from "../router";
 
 interface UserRow {
@@ -14,7 +14,7 @@ interface UserRow {
 export function registerAuthRoutes(r: Router): void {
   r.post("/auth/register", async (c) => {
     const body = await parseJson(c.req, RegisterBody);
-    if (body.inviteCode !== c.env.REGISTRATION_SECRET) throw new HttpError(403, "Invalid invite code");
+    if (!(await sameSecret(body.inviteCode, c.env.REGISTRATION_SECRET))) throw new HttpError(403, "Invalid invite code");
     const existing = await c.env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(body.email).first();
     if (existing) throw new HttpError(409, "Email already registered");
     const user: User = { id: newId(), email: body.email };
@@ -42,8 +42,9 @@ export function registerAuthRoutes(r: Router): void {
     return json({ user: { id: row.id, email: row.email } satisfies User });
   });
 
+  // An expired or revoked session still gets its cookie cleared; only a request without one is refused.
   r.post("/auth/logout", async (c) => {
-    await requireUser(c);
+    if (!readCookie(c.req, SESSION_COOKIE)) throw new HttpError(401, "Unauthorized");
     await destroySession(c);
     return new Response(null, { status: 204 });
   });
@@ -52,4 +53,11 @@ export function registerAuthRoutes(r: Router): void {
     const user = await requireUser(c);
     return json({ user });
   });
+}
+
+// Compares digests so the time taken does not depend on how much of the code was right.
+async function sameSecret(given: string, secret: string): Promise<boolean> {
+  const digest = (s: string) => crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  const [a, b] = await Promise.all([digest(given), digest(secret)]);
+  return crypto.subtle.timingSafeEqual(a, b);
 }
